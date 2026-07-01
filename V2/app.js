@@ -84,18 +84,64 @@
   }
 }
 
-  async function loadMedia(taskId, container) {
-    const list = await api(`/media?task_id=${encodeURIComponent(taskId)}`);
-    container.innerHTML = '';
-    list.forEach(m=>{
-      const el = document.createElement(m.media_type==='video'?'video':'img');
-      el.src = m.media_url;
-      el.style='max-width:200px;max-height:200px;margin:6px;border-radius:12px;';
-      if (m.media_type==='video') el.controls=true;
-      container.appendChild(el);
-    });
+async function loadMedia(taskId, container) {
+  const list = await api(`/media?task_id=${encodeURIComponent(taskId)}`);
+  container.innerHTML = '';
+
+  list.forEach(m => {
+    const el = document.createElement(m.media_type === 'video' ? 'video' : 'img');
+    el.src = m.media_url;
+    el.draggable = false;
+    el.style.userSelect = 'none';
+    el.style.webkitUserSelect = 'none';
+    el.style.maxWidth = '120px';
+    el.style.maxHeight = '120px';
+    el.style.margin = '6px';
+    el.style.borderRadius = '12px';
+    el.style.cursor = 'pointer';
+
+    if (m.media_type === 'video') {
+      el.controls = true;
+    }
+
+    // ✅ 点击放大
+    el.onclick = (e) => {
+      e.stopPropagation(); // 防止触发卡片完成
+      openMediaView(m.media_url, m.media_type);
+    };
+
+    container.appendChild(el);
+  });
+}
+// ============================================================
+// 查看媒体（大图 / 大视频）
+// ============================================================
+function openMediaView(url, type) {
+  const modal = document.getElementById('viewMediaModal');
+  const content = document.getElementById('viewMediaContent');
+
+  if (!modal || !content) {
+    console.error('❌ viewMediaModal 或 viewMediaContent 不存在');
+    return;
   }
 
+  if (type === 'video') {
+    content.innerHTML = `
+      <video controls
+        src="${url}"
+        style="max-width:100%;max-height:70vh;border-radius:16px;background:#000;">
+      </video>
+    `;
+  } else {
+    content.innerHTML = `
+      <img src="${url}"
+        style="max-width:100%;max-height:70vh;border-radius:16px;background:#000;" />
+    `;
+  }
+
+  modal.classList.add('active');
+}
+  
   // ---- UI ----
   function format(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function week(d){return['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];}
@@ -113,7 +159,24 @@
     $('displayWeekday').textContent=week(currentCenterDate);
     bindCards();
   }
+// ============================================================
+// 关闭媒体查看弹窗
+// ============================================================
+const closeMediaBtn = document.getElementById('closeMediaViewBtn');
+const viewMediaModal = document.getElementById('viewMediaModal');
 
+if (closeMediaBtn && viewMediaModal) {
+  closeMediaBtn.onclick = () => {
+    viewMediaModal.classList.remove('active');
+  };
+
+  // 点击背景关闭
+  viewMediaModal.onclick = (e) => {
+    if (e.target === viewMediaModal) {
+      viewMediaModal.classList.remove('active');
+    }
+  };
+}
   function col(date,tasks,label,type) {
     const ymd=format(date);
     let html=tasks.length?tasks.map(t=>`
