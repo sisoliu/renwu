@@ -50,16 +50,39 @@
   }
 
   async function uploadMultipleMedia(taskId, files) {
-    const fd = new FormData();
-    files.forEach(f=>fd.append('file',f));
-    fd.append('taskId',taskId);
-    const data = await api('/upload',{method:'POST',body:fd});
-    for (const f of data.files) {
-      await api('/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        task_id:taskId, media_url:f.url, media_type:f.type
-      })});
-    }
+  const fd = new FormData();
+  files.forEach(f => fd.append('file', f));
+  fd.append('taskId', taskId);
+
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    body: fd
+  });
+
+  if (!res.ok) {
+    throw new Error('上传失败');
   }
+
+  const data = await res.json();
+
+  // ✅ 关键：防御性判断
+  if (!data || !Array.isArray(data.files)) {
+    console.error('upload 返回结构异常:', data);
+    throw new Error('上传返回格式错误');
+  }
+
+  for (const f of data.files) {
+    await fetch('/api/media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        media_url: f.url,
+        media_type: f.type
+      })
+    });
+  }
+}
 
   async function loadMedia(taskId, container) {
     const list = await api(`/media?task_id=${encodeURIComponent(taskId)}`);
