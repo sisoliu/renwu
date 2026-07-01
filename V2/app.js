@@ -1,364 +1,372 @@
 // ============================================================
-// 刘昱君暑假任务管家（Cloudflare D1 + R2 多图稳定版）
-// ✅ 一个任务 = 多张照片 / 多个视频
+// 暑假任务管家 · 最全完整版（Cloudflare D1 + R2）
+// ✅ 支持：多图上传 / iOS 风格相册 / 动态 DOM 绑定
 // ============================================================
 
 (function () {
-  console.log('🚀 多图版启动');
+  console.log('🚀 最全完整版启动');
 
   const API = '/api';
-  let currentView = 'daily';
   let currentCenterDate = new Date();
   let currentAddDate = null;
-  let repeatType = 'once';
+  let currentRepeatType = 'once';
   let pendingTaskId = null;
   let selectedFiles = [];
 
-  // ---- DOM ----
   const $ = id => document.getElementById(id);
 
-  // ---- API ----
-  async function api(path, opt={}) {
-    const r = await fetch(API+path, opt);
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+  /* ========== API ========== */
+
+  async function api(path, opt = {}) {
+    const res = await fetch(API + path, opt);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
   }
 
   async function getTasks(date) {
-    return (await api(`/tasks?date=${encodeURIComponent(date)}`)).map(t=>({
-      id:t.id, text:t.task_text, completed:!!t.completed,
-      repeat_type:t.repeat_type||'once', parent_id:t.parent_id,
-      media_url:t.media_url, media_type:t.media_type
-    }));
+    return (await api(`/tasks?date=${encodeURIComponent(date)}`))
+      .map(t => ({
+        id: t.id,
+        text: t.task_text,
+        completed: !!t.completed,
+        repeat_type: t.repeat_type || 'once'
+      }));
   }
 
   async function upsertTask(t) {
     const ex = await api(`/tasks?id=${encodeURIComponent(t.id)}`);
     if (ex.length) {
-      await api(`/tasks?id=${encodeURIComponent(t.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(t)});
+      await api(`/tasks?id=${encodeURIComponent(t.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(t)
+      });
     } else {
-      await api('/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...t,created_at:new Date().toISOString()})});
+      await api('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...t,
+          created_at: new Date().toISOString()
+        })
+      });
     }
   }
 
   async function completeTask(id) {
-    await api(`/tasks?id=${encodeURIComponent(id)}`,{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({completed:true})
-    });
-  }
-
-  async function uploadMultipleMedia(taskId, files) {
-  const fd = new FormData();
-  files.forEach(f => fd.append('file', f));
-  fd.append('taskId', taskId);
-
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    body: fd
-  });
-
-  if (!res.ok) {
-    throw new Error('上传失败');
-  }
-
-  const data = await res.json();
-
-  // ✅ 关键：防御性判断
-  if (!data || !Array.isArray(data.files)) {
-    console.error('upload 返回结构异常:', data);
-    throw new Error('上传返回格式错误');
-  }
-
-  for (const f of data.files) {
-    await fetch('/api/media', {
-      method: 'POST',
+    await api(`/tasks?id=${encodeURIComponent(id)}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        task_id: taskId,
-        media_url: f.url,
-        media_type: f.type
-      })
+      body: JSON.stringify({ completed: true })
     });
   }
-}
 
-async function loadMedia(taskId, container) {
-  const list = await api(`/media?task_id=${encodeURIComponent(taskId)}`);
-  container.innerHTML = '';
+  async function uploadMedia(taskId, files) {
+    const fd = new FormData();
+    files.forEach(f => fd.append('file', f));
+    fd.append('taskId', taskId);
 
-  list.forEach(m => {
-    const el = document.createElement(m.media_type === 'video' ? 'video' : 'img');
-    el.src = m.media_url;
-    el.draggable = false;
-    el.style.userSelect = 'none';
-    el.style.webkitUserSelect = 'none';
-    el.style.maxWidth = '120px';
-    el.style.maxHeight = '120px';
-    el.style.margin = '6px';
-    el.style.borderRadius = '12px';
-    el.style.cursor = 'pointer';
+    const data = await api('/upload', { method: 'POST', body: fd });
+    if (!Array.isArray(data.files)) return;
 
-    if (m.media_type === 'video') {
-      el.controls = true;
+    for (const f of data.files) {
+      await api('/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_id: taskId,
+          media_url: f.url,
+          media_type: f.type
+        })
+      });
+    }
+  }
+
+  /* ========== 工具 ========== */
+
+  function formatYMD(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  function weekday(d) {
+    return ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  }
+
+  /* ========== 每日视图 ========== */
+
+  async function renderDailyView() {
+    const grid = $('tasksGrid');
+    grid.innerHTML = '<div class="loading">加载中…</div>';
+
+    const left = new Date(currentCenterDate);
+    left.setDate(left.getDate() - 1);
+    const right = new Date(currentCenterDate);
+    right.setDate(right.getDate() + 1);
+
+    const [l, c, r] = await Promise.all([
+      getTasks(formatYMD(left)),
+      getTasks(formatYMD(currentCenterDate)),
+      getTasks(formatYMD(right))
+    ]);
+
+    grid.innerHTML = '';
+    grid.appendChild(column(left, l, '昨天', 'yesterday'));
+    grid.appendChild(column(currentCenterDate, c, '今天', 'today'));
+    grid.appendChild(column(right, r, '明天', 'tomorrow'));
+
+    $('displayDate').textContent = formatYMD(currentCenterDate);
+    $('displayWeekday').textContent = weekday(currentCenterDate);
+
+    bindCardEvents();
+    bindAddButtons();
+  }
+
+  function column(date, tasks, label, type) {
+    const ymd = formatYMD(date);
+    const col = document.createElement('div');
+    col.className = `day-column ${type}-column`;
+
+    let html = `<div class="column-title"><span>${label}</span>`;
+    if (type === 'today') {
+      html += `<button class="add-task-btn" data-date="${ymd}">+</button>`;
+    }
+    html += `</div><div class="tasks-list">`;
+
+    if (!tasks.length) {
+      html += `<div class="empty-msg">暂无任务</div>`;
+    } else {
+      tasks.forEach(t => {
+        html += `
+          <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
+            <div class="task-left">
+              <span class="task-text">${escapeHtml(t.text)}</span>
+              <span class="repeat-badge">
+                ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
+              </span>
+            </div>
+            <div class="check-icon">${t.completed ? '✓✓' : '○'}</div>
+          </div>
+        `;
+      });
     }
 
-    // ✅ 点击放大
-    el.onclick = (e) => {
-      e.stopPropagation(); // 防止触发卡片完成
-      openMediaView(m.media_url, m.media_type);
-    };
-
-    container.appendChild(el);
-  });
-}
-// ============================================================
-// 查看媒体（大图 / 大视频）
-// ============================================================
-function openMediaView(url, type) {
-  const modal = document.getElementById('viewMediaModal');
-  const content = document.getElementById('viewMediaContent');
-
-  if (!modal || !content) {
-    console.error('❌ viewMediaModal 或 viewMediaContent 不存在');
-    return;
+    html += `</div>`;
+    col.innerHTML = html;
+    return col;
   }
 
-  if (type === 'video') {
-    content.innerHTML = `
-      <video controls
-        src="${url}"
-        style="max-width:100%;max-height:70vh;border-radius:16px;background:#000;">
-      </video>
-    `;
-  } else {
-    content.innerHTML = `
-      <img src="${url}"
-        style="max-width:100%;max-height:70vh;border-radius:16px;background:#000;" />
-    `;
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[m]);
   }
 
-  modal.classList.add('active');
-}
-  
-  // ---- UI ----
-  function format(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function week(d){return['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];}
+  /* ========== 事件绑定（动态 DOM 安全） ========== */
 
-  async function renderDaily() {
-    const g=$('tasksGrid'); g.innerHTML='<div class="loading">加载...</div>';
-    const l=new Date(currentCenterDate); l.setDate(l.getDate()-1);
-    const r=new Date(currentCenterDate); r.setDate(r.getDate()+1);
-    const [a,b,c]=await Promise.all([getTasks(format(l)),getTasks(format(currentCenterDate)),getTasks(format(r))]);
-    g.innerHTML='';
-    g.appendChild(col(l,a,'昨天','yesterday'));
-    g.appendChild(col(currentCenterDate,b,'今天','today'));
-    g.appendChild(col(r,c,'明天','tomorrow'));
-    $('displayDate').textContent=format(currentCenterDate);
-    $('displayWeekday').textContent=week(currentCenterDate);
-    bindCards();
-  }
-// ============================================================
-// 关闭媒体查看弹窗
-// ============================================================
-const closeMediaBtn = document.getElementById('closeMediaViewBtn');
-const viewMediaModal = document.getElementById('viewMediaModal');
+  function bindCardEvents() {
+    document.querySelectorAll('.task-card').forEach(card => {
+      card.onclick = async () => {
+        const id = card.dataset.id;
+        const completed = card.classList.contains('completed');
 
-if (closeMediaBtn && viewMediaModal) {
-  closeMediaBtn.onclick = () => {
-    viewMediaModal.classList.remove('active');
-  };
-
-  // 点击背景关闭
-  viewMediaModal.onclick = (e) => {
-    if (e.target === viewMediaModal) {
-      viewMediaModal.classList.remove('active');
-    }
-  };
-}
-  function col(date,tasks,label,type) {
-    const ymd=format(date);
-    let html=tasks.length?tasks.map(t=>`
-      <div class="task-card ${t.completed?'completed':''}" data-id="${t.id}" data-ymd="${ymd}">
-        <div class="task-left">
-          <span class="task-text">${t.text}</span>
-          <span class="repeat-badge">${t.repeat_type==='daily'?'每天':t.repeat_type==='weekly'?'每周':'当天'}</span>
-        </div>
-        <div class="check-icon">${t.completed?'✓✓':'○'}</div>
-      </div>
-    `).join(''):`<div class="empty-msg">暂无任务</div>`;
-    const d=document.createElement('div');
-    d.className=`day-column ${type}-column`;
-    d.innerHTML=`<div class="column-title"><span>${label}</span>${type==='today'?`<button class="add-task-btn" data-date="${ymd}">+</button>`:''}</div><div class="tasks-list">${html}</div>`;
-    return d;
-  }
-
-function bindCards() {
-  document.querySelectorAll('.task-card').forEach(card => {
-    const id = card.dataset.id;
-    const completed = card.classList.contains('completed');
-    const left = card.querySelector('.task-left');
-
-    // ✅ 已完成任务：加相册图标
-    if (completed) {
-      const icon = document.createElement('span');
-      icon.className = 'media-badge';
-      icon.textContent = '📸';
-      icon.style.cursor = 'pointer';
-      icon.style.marginLeft = '6px';
-
-      icon.onclick = async (e) => {
-        e.stopPropagation(); // 防止触发完成
-        const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-        if (list.length) {
-          openGallery(list, 0);
+        if (completed) {
+          const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
+          if (list.length) openGallery(list, 0);
+        } else {
+          pendingTaskId = id;
+          selectedFiles = [];
+          $('mediaPreview').innerHTML = '';
+          $('completeTaskModal').classList.add('active');
         }
       };
+    });
+  }
 
-      left.appendChild(icon);
-    }
+  function bindAddButtons() {
+    document.querySelectorAll('.add-task-btn').forEach(btn => {
+      btn.onclick = e => {
+        e.stopPropagation();
+        openAddModal(btn.dataset.date);
+      };
+    });
+  }
 
-    // ✅ 未完成任务：弹上传
-    card.onclick = async () => {
-      if (!completed) {
-        pendingTaskId = id;
-        selectedFiles = [];
-        $('mediaPreview').innerHTML = '';
-        $('completeTaskModal').classList.add('active');
-      }
+  /* ========== 添加任务 ========== */
+
+  function openAddModal(date) {
+    currentAddDate = date;
+    currentRepeatType = 'once';
+    $('taskTitleInput').value = '';
+    document.querySelectorAll('.repeat-option').forEach(o =>
+      o.classList.toggle('selected', o.dataset.repeat === 'once')
+    );
+    $('taskModal').classList.add('active');
+    $('taskTitleInput').focus();
+  }
+
+  document.querySelectorAll('.repeat-option').forEach(opt => {
+    opt.onclick = () => {
+      document.querySelectorAll('.repeat-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      currentRepeatType = opt.dataset.repeat;
     };
   });
-}
 
-  function openAdd(date){
-    currentAddDate=date;
-    $('taskTitleInput').value='';
-    $('taskModal').classList.add('active');
-  }
-
-  // ---- 弹窗 ----
-  $('chooseMediaBtn').onclick=()=>$('mediaFileInput').click();
-  $('mediaFileInput').onchange=e=>{
-    selectedFiles=Array.from(e.target.files);
-    $('mediaPreview').innerHTML='';
-    selectedFiles.forEach(f=>{
-      const r=new FileReader();
-      r.onload=ev=>{
-        const el=document.createElement(f.type.startsWith('video')?'video':'img');
-        el.src=ev.target.result;
-        el.style='max-width:100px;max-height:100px;margin:4px;border-radius:12px;';
-        if(f.type.startsWith('video')) el.controls=true;
-        $('mediaPreview').appendChild(el);
-      };
-      r.readAsDataURL(f);
-    });
-  };
-  $('cancelCompleteBtn').onclick=()=>$('completeTaskModal').classList.remove('active');
-  $('confirmCompleteBtn').onclick=async()=>{
-    if (!pendingTaskId) return;
-    if (selectedFiles.length) await uploadMultipleMedia(pendingTaskId, selectedFiles);
-    await completeTask(pendingTaskId);
-    $('completeTaskModal').classList.remove('active');
-    renderDaily();
-  };
-
-  // ---- 添加任务 ----
-  $('confirmAddBtn').onclick=async()=>{
-    const text=$('taskTitleInput').value.trim();
-    if(!text) return;
+  $('confirmAddBtn').onclick = async () => {
+    const text = $('taskTitleInput').value.trim();
+    if (!text) return alert('请输入任务内容');
     await upsertTask({
-      id:crypto.randomUUID(),
-      date:currentAddDate,
-      task_text:text,
-      completed:false,
-      repeat_type:repeatType
+      id: crypto.randomUUID(),
+      date: currentAddDate,
+      task_text: text,
+      completed: false,
+      repeat_type: currentRepeatType
     });
     $('taskModal').classList.remove('active');
-    renderDaily();
+    renderDailyView();
   };
 
-  // ---- 视图切换 ----
-  $('dailyViewBtn').onclick=()=>{currentView='daily';renderDaily();};
-  $('prevDayBtn').onclick=()=>{currentCenterDate.setDate(currentCenterDate.getDate()-1);renderDaily();};
-  $('nextDayBtn').onclick=()=>{currentCenterDate.setDate(currentCenterDate.getDate()+1);renderDaily();};
-  $('backTodayBtn').onclick=()=>{currentCenterDate=new Date();renderDaily();};
+  $('cancelModalBtn').onclick = () => {
+    $('taskModal').classList.remove('active');
+  };
 
-  // ---- 启动 ----
-  currentCenterDate.setHours(0,0,0,0);
-  renderDaily();
-  // ============================================================
-// iOS 风格相册查看器
-// ============================================================
-let galleryItems = [];
-let galleryIndex = 0;
-let touchStartX = 0;
+  /* ========== 完成任务 ========== */
 
-function openGallery(items, index = 0) {
-  galleryItems = items;
-  galleryIndex = index;
+  $('chooseMediaBtn').onclick = () => $('mediaFileInput').click();
 
-  const modal = $('galleryModal');
-  const track = $('galleryTrack');
-  track.innerHTML = '';
+  $('mediaFileInput').onchange = e => {
+    selectedFiles = Array.from(e.target.files);
+    $('mediaPreview').innerHTML = '';
+    selectedFiles.forEach(f => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const el = document.createElement(f.type.startsWith('video') ? 'video' : 'img');
+        el.src = ev.target.result;
+        el.style = 'max-width:100px;max-height:100px;margin:4px;border-radius:12px;';
+        if (f.type.startsWith('video')) el.controls = true;
+        $('mediaPreview').appendChild(el);
+      };
+      reader.readAsDataURL(f);
+    });
+  };
 
-  items.forEach(m => {
-    const div = document.createElement('div');
-    div.className = 'gallery-item';
-    if (m.media_type === 'video') {
-      div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
-    } else {
-      div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+  $('cancelCompleteBtn').onclick = () => {
+    $('completeTaskModal').classList.remove('active');
+  };
+
+  $('confirmCompleteBtn').onclick = async () => {
+    if (!pendingTaskId) return;
+    if (selectedFiles.length) {
+      await uploadMedia(pendingTaskId, selectedFiles);
     }
-    track.appendChild(div);
-  });
-
-  track.style.transform = `translateX(-${index * 100}vw)`;
-  modal.classList.add('active');
-
-  // 触摸滑动
-  modal.ontouchstart = e => {
-    touchStartX = e.touches[0].clientX;
+    await completeTask(pendingTaskId);
+    $('completeTaskModal').classList.remove('active');
+    renderDailyView();
   };
 
-  modal.ontouchend = e => {
-    const diff = touchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) nextGallery();
-      else prevGallery();
+  /* ========== iOS 风格相册 ========== */
+
+  let galleryItems = [];
+  let galleryIndex = 0;
+  let touchStartX = 0;
+  let mouseDownX = 0;
+
+  function openGallery(items, index = 0) {
+    galleryItems = items;
+    galleryIndex = index;
+
+    const modal = $('galleryModal');
+    const track = $('galleryTrack');
+    track.innerHTML = '';
+
+    items.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'gallery-item';
+      if (m.media_type === 'video') {
+        div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
+      } else {
+        div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+      }
+      track.appendChild(div);
+    });
+
+    track.style.transform = `translateX(-${index * 100}vw)`;
+    modal.classList.add('active');
+
+    modal.ontouchstart = e => { touchStartX = e.touches[0].clientX; };
+    modal.ontouchend = e => {
+      const diff = touchStartX - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
+    };
+
+    modal.onmousedown = e => { mouseDownX = e.clientX; };
+    modal.onmouseup = e => {
+      const diff = mouseDownX - e.clientX;
+      if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
+    };
+
+    document.onkeydown = e => {
+      if (e.key === 'ArrowRight') nextGallery();
+      if (e.key === 'ArrowLeft') prevGallery();
+      if (e.key === 'Escape') closeGallery();
+    };
+  }
+
+  function nextGallery() {
+    if (galleryIndex < galleryItems.length - 1) {
+      galleryIndex++;
+      updateGallery();
     }
-  };
-}
-
-function nextGallery() {
-  if (galleryIndex < galleryItems.length - 1) {
-    galleryIndex++;
-    updateGallery();
   }
-}
 
-function prevGallery() {
-  if (galleryIndex > 0) {
-    galleryIndex--;
-    updateGallery();
+  function prevGallery() {
+    if (galleryIndex > 0) {
+      galleryIndex--;
+      updateGallery();
+    }
   }
-}
 
-function updateGallery() {
-  $('galleryTrack').style.transform = `translateX(-${galleryIndex * 100}vw)`;
-}
+  function updateGallery() {
+    const t = $('galleryTrack');
+    if (t) t.style.transform = `translateX(-${galleryIndex * 100}vw)`;
+  }
 
-// 关闭
-const gm = $('galleryModal');
-if (gm) {
-  const btn = document.createElement('button');
-  btn.className = 'close-btn';
-  btn.innerHTML = '×';
-  btn.onclick = () => gm.classList.remove('active');
-  gm.appendChild(btn);
+  function closeGallery() {
+    $('galleryModal').classList.remove('active');
+    document.onkeydown = null;
+  }
 
-  gm.onclick = e => {
-    if (e.target === gm) gm.classList.remove('active');
+  // 关闭按钮
+  const closeBtn = document.querySelector('#galleryModal .close-btn');
+  if (closeBtn) closeBtn.onclick = closeGallery;
+
+  $('galleryModal').onclick = e => {
+    if (e.target === $('galleryModal')) closeGallery();
   };
-}
+
+  /* ========== 日期导航 ========== */
+
+  $('prevDayBtn').onclick = () => {
+    currentCenterDate.setDate(currentCenterDate.getDate() - 1);
+    renderDailyView();
+  };
+
+  $('nextDayBtn').onclick = () => {
+    currentCenterDate.setDate(currentCenterDate.getDate() + 1);
+    renderDailyView();
+  };
+
+  $('backTodayBtn').onclick = () => {
+    currentCenterDate = new Date();
+    currentCenterDate.setHours(0, 0, 0, 0);
+    renderDailyView();
+  };
+
+  /* ========== 启动 ========== */
+
+  currentCenterDate.setHours(0, 0, 0, 0);
+  renderDailyView();
 })();
