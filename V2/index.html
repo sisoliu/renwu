@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>刘昱君 · 暑假任务管家</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="top-bar">
+        <div class="view-toggle">
+            <button class="toggle-btn active" id="dailyViewBtn">📅 每日任务</button>
+            <button class="toggle-btn" id="overviewViewBtn">🌞 暑假总览</button>
+        </div>
+        <button class="back-today-btn" id="backTodayBtn">📍 返回今天</button>
+    </div>
+
+    <div id="dailyViewPanel">
+        <div class="date-navigation">
+            <button class="nav-btn" id="prevDayBtn">←</button>
+            <div class="date-header">
+                <div class="date-main" id="displayDate">--</div>
+                <div class="weekday" id="displayWeekday"></div>
+            </div>
+            <button class="nav-btn" id="nextDayBtn">→</button>
+        </div>
+        <div class="tasks-grid" id="tasksGrid">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <div id="overviewViewPanel" style="display: none;">
+        <div class="overview-container" id="overviewContainer"></div>
+    </div>
+</div>
+
+<!-- 添加任务模态框 -->
+<div id="taskModal" class="modal-mask">
+    <div class="modal-container">
+        <h3>➕ 新任务</h3>
+        <input type="text" id="taskTitleInput" placeholder="任务内容, 例如: 背单词" autocomplete="off" />
+        <div style="font-size:0.85rem; text-align:left; margin-top:8px; color:#b87a53;">重复规则</div>
+        <div class="repeat-options">
+            <div data-repeat="once" class="repeat-option selected">📅 当天任务</div>
+            <div data-repeat="daily" class="repeat-option">🔄 每天重复</div>
+            <div data-repeat="weekly" class="repeat-option">📆 每周重复</div>
+        </div>
+        <div class="modal-buttons">
+            <button class="modal-btn" id="cancelModalBtn">取消</button>
+            <button class="modal-btn confirm" id="confirmAddBtn">添加任务</button>
+        </div>
+    </div>
+</div>
+
+<!-- 完成任务 - 上传媒体模态框 -->
+<div id="completeTaskModal" class="modal-mask">
+    <div class="modal-container" style="max-width: 480px;">
+        <h3>📸 完成任务</h3>
+        <p style="color:#b87a53; margin: 8px 0 16px; font-size:0.95rem;" id="completeTaskText">任务名称</p>
+        <div style="border: 2px dashed #f0cfae; border-radius: 32px; padding: 24px; text-align: center; margin: 12px 0; background: #fefaf5;">
+            <div id="mediaPreview" style="margin-bottom: 12px;">
+                <div style="font-size: 3rem; color: #d99464;">📤</div>
+                <p style="color: #b87a53; font-size: 0.9rem;">点击下方按钮上传照片或视频</p>
+            </div>
+            <input type="file" id="mediaFileInput" accept="image/*,video/*" style="display: none;" />
+            <button class="modal-btn" id="chooseMediaBtn" style="background: #d99464; color: white; padding: 12px 32px;">📁 选择文件</button>
+            <button class="modal-btn" id="clearMediaBtn" style="background: #f0e0d0; padding: 12px 24px; margin-left: 8px;">清除</button>
+        </div>
+        <div style="font-size:0.8rem; color:#b48b65; margin-bottom: 8px;">📌 支持 JPG, PNG, GIF, MP4, MOV (最大 10MB)</div>
+        <div class="modal-buttons">
+            <button class="modal-btn" id="cancelCompleteBtn">取消</button>
+            <button class="modal-btn confirm" id="confirmCompleteBtn">✅ 完成任务</button>
+        </div>
+    </div>
+</div>
+
+<!-- 查看媒体模态框 -->
+<div id="viewMediaModal" class="modal-mask">
+    <div class="modal-container" style="max-width: 500px; padding: 16px;">
+        <div id="viewMediaContent" style="text-align: center;"></div>
+        <div class="modal-buttons">
+            <button class="modal-btn" id="closeMediaViewBtn">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div id="deleteConfirmModal" class="modal-mask">
+    <div class="modal-container warning-modal">
+        <h3>🗑️ 删除任务</h3>
+        <div id="deleteWarningMsg" class="warning-msg"></div>
+        <div id="deleteDynamicButtons" class="modal-buttons warning-buttons"></div>
+    </div>
+</div>
+
+<footer id="appFooter">✅ 单击卡片完成(需上传凭证) | 双击卡片删除 | 双击底部清理未来重复任务</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
