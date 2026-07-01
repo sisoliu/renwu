@@ -273,4 +273,78 @@ if (closeMediaBtn && viewMediaModal) {
   // ---- 启动 ----
   currentCenterDate.setHours(0,0,0,0);
   renderDaily();
+  // ============================================================
+// iOS 风格相册查看器
+// ============================================================
+let galleryItems = [];
+let galleryIndex = 0;
+let touchStartX = 0;
+
+function openGallery(items, index = 0) {
+  galleryItems = items;
+  galleryIndex = index;
+
+  const modal = $('galleryModal');
+  const track = $('galleryTrack');
+  track.innerHTML = '';
+
+  items.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'gallery-item';
+    if (m.media_type === 'video') {
+      div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
+    } else {
+      div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+    }
+    track.appendChild(div);
+  });
+
+  track.style.transform = `translateX(-${index * 100}vw)`;
+  modal.classList.add('active');
+
+  // 触摸滑动
+  modal.ontouchstart = e => {
+    touchStartX = e.touches[0].clientX;
+  };
+
+  modal.ontouchend = e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) nextGallery();
+      else prevGallery();
+    }
+  };
+}
+
+function nextGallery() {
+  if (galleryIndex < galleryItems.length - 1) {
+    galleryIndex++;
+    updateGallery();
+  }
+}
+
+function prevGallery() {
+  if (galleryIndex > 0) {
+    galleryIndex--;
+    updateGallery();
+  }
+}
+
+function updateGallery() {
+  $('galleryTrack').style.transform = `translateX(-${galleryIndex * 100}vw)`;
+}
+
+// 关闭
+const gm = $('galleryModal');
+if (gm) {
+  const btn = document.createElement('button');
+  btn.className = 'close-btn';
+  btn.innerHTML = '×';
+  btn.onclick = () => gm.classList.remove('active');
+  gm.appendChild(btn);
+
+  gm.onclick = e => {
+    if (e.target === gm) gm.classList.remove('active');
+  };
+}
 })();
