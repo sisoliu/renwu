@@ -34,7 +34,23 @@
         <div class="overview-container" id="overviewContainer"></div>
     </div>
 </div>
-
+<!-- 相册查看器（iOS 风格） -->
+<div id="galleryModal" class="modal-mask">
+  <div id="galleryContainer" style="
+    width:100vw;height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    touch-action:none;
+    background:#000;
+    overflow:hidden;
+  ">
+    <div id="galleryTrack" style="
+      display:flex;
+      height:100%;
+      transition:transform 0.3s ease;
+    "></div>
+  </div>
+</div>
+    
 <!-- 添加任务模态框 -->
 <div id="taskModal" class="modal-mask">
     <div class="modal-container">
