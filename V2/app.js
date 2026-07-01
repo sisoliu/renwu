@@ -274,46 +274,86 @@
   let touchStartX = 0;
   let mouseDownX = 0;
 
-  function openGallery(items, index = 0) {
-    galleryItems = items;
-    galleryIndex = index;
+function openGallery(items, index = 0) {
+  galleryItems = items;
+  galleryIndex = index;
 
-    const modal = $('galleryModal');
-    const track = $('galleryTrack');
-    track.innerHTML = '';
+  const modal = $('galleryModal');
+  const track = $('galleryTrack');
+  track.innerHTML = '';
 
-    items.forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'gallery-item';
-      if (m.media_type === 'video') {
-        div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
-      } else {
-        div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
-      }
-      track.appendChild(div);
-    });
+  items.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'gallery-item';
+    if (m.media_type === 'video') {
+      div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
+    } else {
+      div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+    }
+    track.appendChild(div);
+  });
 
-    track.style.transform = `translateX(-${index * 100}vw)`;
-    modal.classList.add('active');
+  track.style.transform = `translateX(-${index * 100}vw)`;
+  modal.classList.add('active');
 
-    modal.ontouchstart = e => { touchStartX = e.touches[0].clientX; };
-    modal.ontouchend = e => {
-      const diff = touchStartX - e.changedTouches[0].clientX;
-      if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
-    };
-
-    modal.onmousedown = e => { mouseDownX = e.clientX; };
-    modal.onmouseup = e => {
-      const diff = mouseDownX - e.clientX;
-      if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
-    };
-
-    document.onkeydown = e => {
-      if (e.key === 'ArrowRight') nextGallery();
-      if (e.key === 'ArrowLeft') prevGallery();
-      if (e.key === 'Escape') closeGallery();
-    };
+  // ✅ 强制创建关闭按钮（不再依赖 HTML）
+  let closeBtn = modal.querySelector('.close-btn');
+  if (!closeBtn) {
+    closeBtn = document.createElement('button');
+    closeBtn.className = 'close-btn';
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 9999;
+      background: rgba(0,0,0,.6);
+      color: #fff;
+      border: none;
+      font-size: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      line-height: 1;
+    `;
+    modal.appendChild(closeBtn);
   }
+
+  closeBtn.onclick = closeGallery;
+
+  // ✅ 点击背景关闭
+  modal.onclick = e => {
+    if (e.target === modal) closeGallery();
+  };
+
+  // ✅ 键盘支持
+  document.onkeydown = e => {
+    if (e.key === 'ArrowRight') nextGallery();
+    if (e.key === 'ArrowLeft') prevGallery();
+    if (e.key === 'Escape') closeGallery();
+  };
+
+  // ✅ 触摸滑动
+  modal.ontouchstart = e => { touchStartX = e.touches[0].clientX; };
+  modal.ontouchend = e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
+  };
+
+  // ✅ 鼠标拖拽
+  modal.onmousedown = e => { mouseDownX = e.clientX; };
+  modal.onmouseup = e => {
+    const diff = mouseDownX - e.clientX;
+    if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
+  };
+}
+
+function closeGallery() {
+  const modal = $('galleryModal');
+  if (modal) modal.classList.remove('active');
+  document.onkeydown = null;
+}
 
   function nextGallery() {
     if (galleryIndex < galleryItems.length - 1) {
