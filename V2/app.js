@@ -194,28 +194,42 @@ if (closeMediaBtn && viewMediaModal) {
     return d;
   }
 
-  function bindCards() {
-    document.querySelectorAll('.task-card').forEach(card=>{
-      card.onclick=async()=>{
-        const id=card.dataset.id;
-        const completed=card.classList.contains('completed');
-        if (completed) {
-          const box=document.createElement('div');
-          box.id='media-'+id;
-          card.appendChild(box);
-          await loadMedia(id,box);
-        } else {
-          pendingTaskId=id;
-          selectedFiles=[];
-          $('mediaPreview').innerHTML='';
-          $('completeTaskModal').classList.add('active');
+function bindCards() {
+  document.querySelectorAll('.task-card').forEach(card => {
+    const id = card.dataset.id;
+    const completed = card.classList.contains('completed');
+    const left = card.querySelector('.task-left');
+
+    // ✅ 已完成任务：加相册图标
+    if (completed) {
+      const icon = document.createElement('span');
+      icon.className = 'media-badge';
+      icon.textContent = '📸';
+      icon.style.cursor = 'pointer';
+      icon.style.marginLeft = '6px';
+
+      icon.onclick = async (e) => {
+        e.stopPropagation(); // 防止触发完成
+        const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
+        if (list.length) {
+          openGallery(list, 0);
         }
       };
-    });
-    document.querySelectorAll('.add-task-btn').forEach(b=>{
-      b.onclick=()=>openAdd(b.dataset.date);
-    });
-  }
+
+      left.appendChild(icon);
+    }
+
+    // ✅ 未完成任务：弹上传
+    card.onclick = async () => {
+      if (!completed) {
+        pendingTaskId = id;
+        selectedFiles = [];
+        $('mediaPreview').innerHTML = '';
+        $('completeTaskModal').classList.add('active');
+      }
+    };
+  });
+}
 
   function openAdd(date){
     currentAddDate=date;
