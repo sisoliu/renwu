@@ -1,4 +1,4 @@
-/* ===================== 全局1 ===================== */
+/* ===================== 全局 ===================== */
 * {
     margin: 0;
     padding: 0;
@@ -378,4 +378,59 @@ footer {
     .date-navigation {
         padding: 6px 8px;
     }
+}
+/* ===================== 任务右侧操作区 ===================== */
+.task-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 编辑 & 圆圈按钮 */
+.edit-btn,
+.done-btn {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.edit-btn {
+    color: #6366f1;
+}
+
+.done-btn {
+    color: #22c55e;
+}
+
+/* 媒体图标 */
+.media-btn {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    color: #8b5cf6;
+}
+
+/* ===================== 相册关闭按钮 ===================== */
+.gallery-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9999;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: none;
+    font-size: 24px;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+}
+
+/* 去掉原来顶部添加按钮的残留样式（防止影响布局） */
+.add-task-top-btn {
+    display: none;
 }
