@@ -114,103 +114,100 @@
         bindCardEvents();
     }
 
-    function column(date, tasks, label, type) {
-        const ymd = formatYMD(date);
-        const col = document.createElement('div');
-        col.className = `day-column ${type}-column`;
+function column(date, tasks, label, type) {
+    const ymd = formatYMD(date);
+    const col = document.createElement('div');
+    col.className = `day-column ${type}-column`;
 
-        let html = `<div class="column-title"><span>${label}</span>`;
-        if (type === 'today') {
-            html += `<button class="add-task-btn" data-date="${ymd}">+</button>`;
-        }
-        html += `</div><div class="tasks-list">`;
-
-        if (!tasks.length) {
-            html += `<div class="empty-msg">暂无任务</div>`;
-        } else {
-            tasks.forEach(t => {
-                html += `
-                <div class="task-card-wrapper">
-                    <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
-                        <div class="task-left">
-                            <span class="task-text">${escapeHtml(t.text)}</span>
-                            <span class="repeat-badge">
-                                ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
-                            </span>
-                        </div>
-                        <div class="check-icon">${t.completed ? '✓✓' : '○'}</div>
-                    </div>
-                    <div class="task-actions">
-                        <button class="edit-btn" title="编辑">✏️</button>
-                        <button class="done-btn" title="完成任务">✔️</button>
-                    </div>
-                </div>`;
-            });
-        }
-
-        html += `</div>`;
-        col.innerHTML = html;
-        return col;
+    let html = `<div class="column-title"><span>${label}</span>`;
+    if (type === 'today') {
+        html += `<button class="add-task-btn" data-date="${ymd}">+</button>`;
     }
+    html += `</div><div class="tasks-list">`;
 
-    /* ========== 卡片事件 ========== */
-    function bindCardEvents() {
-        $('tasksGrid').onclick = async e => {
-            const wrapper = e.target.closest('.task-card-wrapper');
-            if (!wrapper) return;
+    if (!tasks.length) {
+        html += `<div class="empty-msg">暂无任务</div>`;
+    } else {
+        tasks.forEach(async t => {
+            const hasMedia = (await api(`/media?task_id=${encodeURIComponent(t.id)}`)).length > 0;
 
-            const card = wrapper.querySelector('.task-card');
-            const id = card.dataset.id;
+            html += `<div class="task-card-wrapper">`;
 
-            // ✅ 编辑
-            if (e.target.classList.contains('edit-btn')) {
-                const list = await api(`/tasks?id=${encodeURIComponent(id)}`);
-                if (list.length) {
-                    openAddModal(list[0].date, {
-                        id: list[0].id,
-                        text: list[0].task_text,
-                        repeat_type: list[0].repeat_type
-                    });
-                }
-                return;
+            // 任务主体
+            html += `
+            <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
+                <div class="task-left">
+                    <span class="task-text">${escapeHtml(t.text)}</span>
+                    <span class="repeat-badge">
+                        ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
+                    </span>
+                </div>`;
+
+            // ✅ 右侧操作区
+            if (t.completed) {
+                // 已完成：只显示图片图标
+                html += `
+                <div class="task-right">
+                    ${hasMedia ? '<button class="media-btn" title="查看媒体">🖼️</button>' : ''}
+                </div>`;
+            } else {
+                // 未完成：编辑 + 圆圈
+                html += `
+                <div class="task-right">
+                    <button class="edit-btn" title="编辑">✏️</button>
+                    <button class="done-btn" title="完成任务">○</button>
+                </div>`;
             }
 
-            // ✅ 完成（打勾）
-            if (e.target.classList.contains('done-btn')) {
-                if (card.classList.contains('completed')) {
-                    const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-                    if (list.length) openGallery(list, 0);
-                } else {
-                    pendingTaskId = id;
-                    selectedFiles = [];
-                    $('mediaPreview').innerHTML = '';
-                    $('completeTaskModal').classList.add('active');
-                }
-                return;
-            }
-
-            // ✅ 点击卡片：已完成 → 查看相册
-            if (card.classList.contains('completed')) {
-                const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-                if (list.length) openGallery(list, 0);
-            }
-        };
-
-        // ✅ 左滑
-        document.querySelectorAll('.task-card-wrapper').forEach(wrapper => {
-            const card = wrapper.querySelector('.task-card');
-            wrapper.ontouchstart = e => { swipeStartX = e.touches[0].clientX; };
-            wrapper.ontouchend = e => {
-                const diff = swipeStartX - e.changedTouches[0].clientX;
-                card.style.transform = diff > 80 ? 'translateX(-130px)' : 'translateX(0)';
-            };
-            wrapper.onmousedown = e => { swipeStartX = e.clientX; };
-            wrapper.onmouseup = e => {
-                const diff = swipeStartX - e.clientX;
-                card.style.transform = diff > 80 ? 'translateX(-130px)' : 'translateX(0)';
-            };
+            html += `</div></div>`;
         });
     }
+
+    html += `</div>`;
+    col.innerHTML = html;
+    return col;
+}
+
+    /* ========== 卡片事件 ========== */
+function bindCardEvents() {
+    $('tasksGrid').onclick = async e => {
+
+        // ✅ 查看媒体
+        if (e.target.classList.contains('media-btn')) {
+            const wrapper = e.target.closest('.task-card-wrapper');
+            const id = wrapper.querySelector('.task-card').dataset.id;
+            const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
+            if (list.length) openGallery(list, 0);
+            return;
+        }
+
+        // ✅ 编辑
+        if (e.target.classList.contains('edit-btn')) {
+            const wrapper = e.target.closest('.task-card-wrapper');
+            const id = wrapper.querySelector('.task-card').dataset.id;
+            const list = await api(`/tasks?id=${encodeURIComponent(id)}`);
+            if (list.length) {
+                openAddModal(list[0].date, {
+                    id: list[0].id,
+                    text: list[0].task_text,
+                    repeat_type: list[0].repeat_type
+                });
+            }
+            return;
+        }
+
+        // ✅ 完成任务
+        if (e.target.classList.contains('done-btn')) {
+            const wrapper = e.target.closest('.task-card-wrapper');
+            const id = wrapper.querySelector('.task-card').dataset.id;
+            pendingTaskId = id;
+            selectedFiles = [];
+            $('mediaPreview').innerHTML = '';
+            $('completeTaskModal').classList.add('active');
+            return;
+        }
+    };
+}
 
     /* ========== 添加 / 编辑任务弹窗 ========== */
     function openAddModal(date, editTask) {
@@ -322,24 +319,36 @@
     /* ========== 相册 ========== */
     let galleryItems = [], galleryIndex = 0;
 
-    function openGallery(items, index) {
-        galleryItems = items;
-        galleryIndex = index;
-        const track = $('galleryTrack');
-        track.innerHTML = '';
+function openGallery(items, index) {
+    galleryItems = items;
+    galleryIndex = index;
 
-        items.forEach(m => {
-            const div = document.createElement('div');
-            div.className = 'gallery-item';
-            div.innerHTML = m.media_type === 'video'
-                ? `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`
-                : `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
-            track.appendChild(div);
-        });
+    const track = $('galleryTrack');
+    track.innerHTML = '';
 
-        track.style.transform = `translateX(-${index * 100}vw)`;
-        $('galleryModal').classList.add('active');
+    items.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'gallery-item';
+        div.innerHTML = m.media_type === 'video'
+            ? `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`
+            : `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+        track.appendChild(div);
+    });
+
+    track.style.transform = `translateX(-${index * 100}vw)`;
+
+    // ✅ 关闭按钮
+    const modal = $('galleryModal');
+    if (!modal.querySelector('.gallery-close')) {
+        const btn = document.createElement('button');
+        btn.className = 'gallery-close';
+        btn.innerHTML = '✕';
+        modal.appendChild(btn);
+        btn.onclick = () => modal.classList.remove('active');
     }
+
+    modal.classList.add('active');
+}
 
     $('galleryModal').onclick = e => {
         if (e.target === $('galleryModal')) {
