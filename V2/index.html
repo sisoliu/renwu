@@ -8,17 +8,6 @@
 </head>
 <body>
 <div class="app-container">
-    <div class="top-bar">
-      <button id="prevDayBtn">←</button>
-      <div class="date-info">
-        <span id="displayDate"></span>
-        <span id="displayWeekday"></span>
-      </div>
-      <button id="backTodayBtn">今天</button>
-      <!-- ✅ 新增 -->
-      <button id="addTaskTopBtn" class="add-task-top-btn">＋</button>
-      <button id="nextDayBtn">→</button>
-    </div>
 
     <div id="dailyViewPanel">
         <div class="date-navigation">
@@ -27,6 +16,7 @@
                 <div class="date-main" id="displayDate">--</div>
                 <div class="weekday" id="displayWeekday"></div>
             </div>
+            <button id="addTaskTopBtn" class="add-task-top-btn">＋</button>
             <button class="nav-btn" id="nextDayBtn">→</button>
         </div>
         <div class="tasks-grid" id="tasksGrid">
