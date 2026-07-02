@@ -229,10 +229,6 @@ function bindCardEvents() {
         $('taskTitleInput').focus();
     }
 
-    $('addTaskTopBtn').onclick = () => {
-        openAddModal(formatYMD(currentCenterDate));
-    };
-
     document.addEventListener('click', e => {
         const addBtn = e.target.closest('.add-task-btn');
         if (addBtn) {
