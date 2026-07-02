@@ -1,3 +1,8 @@
+function nowCST() {
+    const now = new Date();
+    return new Date(now.getTime() + 8 * 60 * 60 * 1000);
+}
+
 (function () {
     console.log('🚀 暑假任务管家');
 
@@ -88,31 +93,32 @@
     }
 
     /* ========== 每日视图 ========== */
-    async function renderDailyView() {
-        const grid = $('tasksGrid');
-        grid.innerHTML = '<div class="loading">加载中…</div>';
+async function renderDailyView() {
+    const grid = $('tasksGrid');
+    grid.innerHTML = '<div class="loading">加载中…</div>';
 
-        const left = new Date(currentCenterDate);
-        left.setDate(left.getDate() - 1);
-        const right = new Date(currentCenterDate);
-        right.setDate(right.getDate() + 1);
+    const base = new Date(currentCenterDate);
+    const left = new Date(base);
+    left.setDate(left.getDate() - 1);
+    const right = new Date(base);
+    right.setDate(right.getDate() + 1);
 
-        const [l, c, r] = await Promise.all([
-            getTasks(formatYMD(left)),
-            getTasks(formatYMD(currentCenterDate)),
-            getTasks(formatYMD(right))
-        ]);
+    const [l, c, r] = await Promise.all([
+        getTasks(formatYMD(left)),
+        getTasks(formatYMD(base)),
+        getTasks(formatYMD(right))
+    ]);
 
-        grid.innerHTML = '';
-        grid.appendChild(column(left, l, '昨天', 'yesterday'));
-        grid.appendChild(column(currentCenterDate, c, '今天', 'today'));
-        grid.appendChild(column(right, r, '明天', 'tomorrow'));
+    grid.innerHTML = '';
+    grid.appendChild(column(left, l, '昨天', 'yesterday'));
+    grid.appendChild(column(base, c, '今天', 'today'));
+    grid.appendChild(column(right, r, '明天', 'tomorrow'));
 
-        $('displayDate').textContent = formatYMD(currentCenterDate);
-        $('displayWeekday').textContent = ['周日','周一','周二','周三','周四','周五','周六'][currentCenterDate.getDay()];
+    $('displayDate').textContent = formatYMD(base);
+    $('displayWeekday').textContent = ['周日','周一','周二','周三','周四','周五','周六'][base.getDay()];
 
-        bindCardEvents();
-    }
+    bindCardEvents();
+}
 
 function column(date, tasks, label, type) {
     const ymd = formatYMD(date);
@@ -128,9 +134,7 @@ function column(date, tasks, label, type) {
     if (!tasks.length) {
         html += `<div class="empty-msg">暂无任务</div>`;
     } else {
-        tasks.forEach(async t => {
-            const hasMedia = (await api(`/media?task_id=${encodeURIComponent(t.id)}`)).length > 0;
-
+        tasks.forEach(t => {
             html += `<div class="task-card-wrapper">`;
 
             // 任务主体
@@ -143,19 +147,17 @@ function column(date, tasks, label, type) {
                     </span>
                 </div>`;
 
-            // ✅ 右侧操作区
+            // 右侧操作区
             if (t.completed) {
-                // 已完成：只显示图片图标
                 html += `
                 <div class="task-right">
-                    ${hasMedia ? '<button class="media-btn" title="查看媒体">🖼️</button>' : ''}
+                    <button class="media-btn" data-id="${t.id}" title="查看媒体">🖼️</button>
                 </div>`;
             } else {
-                // 未完成：编辑 + 圆圈
                 html += `
                 <div class="task-right">
-                    <button class="edit-btn" title="编辑">✏️</button>
-                    <button class="done-btn" title="完成任务">○</button>
+                    <button class="edit-btn" data-id="${t.id}" title="编辑">✏️</button>
+                    <button class="done-btn" data-id="${t.id}" title="完成任务">○</button>
                 </div>`;
             }
 
@@ -174,12 +176,11 @@ function bindCardEvents() {
 
         // ✅ 查看媒体
         if (e.target.classList.contains('media-btn')) {
-            const wrapper = e.target.closest('.task-card-wrapper');
-            const id = wrapper.querySelector('.task-card').dataset.id;
+            const id = e.target.dataset.id;
             const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
             if (list.length) openGallery(list, 0);
-            return;
-        }
+          return;
+      }
 
         // ✅ 编辑
         if (e.target.classList.contains('edit-btn')) {
@@ -210,24 +211,25 @@ function bindCardEvents() {
 }
 
     /* ========== 添加 / 编辑任务弹窗 ========== */
-    function openAddModal(date, editTask) {
-        currentAddDate = date;
-        isEditingTaskId = editTask ? editTask.id : null;
+function openAddModal(date, editTask) {
+    currentAddDate = date;
+    isEditingTaskId = editTask ? editTask.id : null;
 
-        $('taskModalTitle').textContent = editTask ? '编辑任务' : '添加任务';
-        $('deleteTaskBtn').style.display = editTask ? 'inline-block' : 'none';
+    $('taskModalTitle').textContent = editTask ? '编辑任务' : '添加任务';
+    $('deleteTaskBtn').style.display = editTask ? 'inline-block' : 'none';
 
-        const now = new Date();
-        now.setSeconds(0);
-        $('taskDateTimeInput').value = now.toISOString().slice(0, 16);
-        $('taskTitleInput').value = editTask
-            ? editTask.text.replace(/^\[\d{2}:\d{2}\]\s*/, '')
-            : '';
-        $('repeatSelect').value = editTask ? editTask.repeat_type : 'once';
+    const now = nowCST();
+    now.setSeconds(0);
+    $('taskDateTimeInput').value = now.toISOString().slice(0, 16);
 
-        $('taskModal').classList.add('active');
-        $('taskTitleInput').focus();
-    }
+    $('taskTitleInput').value = editTask
+        ? editTask.text.replace(/^\[\d{2}:\d{2}\]\s*/, '')
+        : '';
+
+    $('repeatSelect').value = editTask ? editTask.repeat_type : 'once';
+    $('taskModal').classList.add('active');
+    $('taskTitleInput').focus();
+}
 
     document.addEventListener('click', e => {
         const addBtn = e.target.closest('.add-task-btn');
@@ -249,39 +251,41 @@ function bindCardEvents() {
         renderDailyView();
     };
 
-    $('confirmAddBtn').onclick = async () => {
-        const text = $('taskTitleInput').value.trim();
-        if (!text) return alert('请输入任务内容');
+$('confirmAddBtn').onclick = async () => {
+    const text = $('taskTitleInput').value.trim();
+    if (!text) return alert('请输入任务内容');
 
-        const dt = new Date($('taskDateTimeInput').value);
-        const date = formatYMD(dt);
-        const time = ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2);
-        const fullText = `[${time}] ${text}`;
+    const dt = new Date($('taskDateTimeInput').value);
+    const date = formatYMD(dt);
+    const time =
+        ('0' + dt.getHours()).slice(-2) + ':' +
+        ('0' + dt.getMinutes()).slice(-2);
+    const fullText = `[${time}] ${text}`;
 
-        if (isEditingTaskId) {
-            await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    task_text: fullText,
-                    date,
-                    repeat_type: $('repeatSelect').value
-                })
-            });
-        } else {
-            await upsertTask({
-                id: crypto.randomUUID(),
-                date,
+    if (isEditingTaskId) {
+        await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
                 task_text: fullText,
-                completed: false,
+                date,
                 repeat_type: $('repeatSelect').value
-            });
-        }
+            })
+        });
+    } else {
+        await upsertTask({
+            id: crypto.randomUUID(),
+            date,
+            task_text: fullText,
+            completed: false,
+            repeat_type: $('repeatSelect').value
+        });
+    }
 
-        $('taskModal').classList.remove('active');
-        isEditingTaskId = null;
-        renderDailyView();
-    };
+    $('taskModal').classList.remove('active');
+    isEditingTaskId = null;
+    renderDailyView();
+};
 
     /* ========== 完成任务 ========== */
     $('chooseMediaBtn').onclick = () => $('mediaFileInput').click();
