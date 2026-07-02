@@ -1,3 +1,4 @@
+/* ===================== 全局 ===================== */
 * {
     margin: 0;
     padding: 0;
@@ -18,55 +19,7 @@ body {
     margin: 0 auto;
 }
 
-.top-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-}
-
-.view-toggle {
-    display: flex;
-    gap: 12px;
-    background: rgba(245, 235, 220, 0.6);
-    padding: 5px;
-    border-radius: 60px;
-    backdrop-filter: blur(4px);
-}
-
-.toggle-btn {
-    background: transparent;
-    border: none;
-    padding: 10px 26px;
-    border-radius: 50px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #b87a53;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.toggle-btn.active {
-    background: #d99464;
-    color: white;
-}
-
-.back-today-btn {
-    background: #f1e2d4;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 40px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #b45f36;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
+/* ===================== 顶部导航 ===================== */
 .date-navigation {
     display: flex;
     align-items: center;
@@ -115,6 +68,18 @@ body {
     margin-top: 4px;
 }
 
+.add-task-top-btn {
+    font-size: 22px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* ===================== 三列任务 ===================== */
 .tasks-grid {
     display: flex;
     flex-wrap: wrap;
@@ -139,7 +104,6 @@ body {
     background: #fffef7;
     box-shadow: 0 20px 35px -12px rgba(110, 60, 30, 0.2);
     border: 1px solid #ffdbb5;
-    transform: scale(1.01);
 }
 
 .day-column.tomorrow-column {
@@ -182,17 +146,25 @@ body {
     transform: scale(0.94);
 }
 
-.task-card {
-  position: relative;
-  z-index: 2;
-  background: #fff;
-  padding: 14px;
-  transition: transform 0.25s ease;
-  will-change: transform;
+/* ===================== 任务卡片 ===================== */
+.task-card-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    margin-bottom: 14px;
+    background: #fff;
 }
 
-.task-card:hover {
-    background: #fff6ed;
+.task-card {
+    position: relative;
+    z-index: 2;
+    background: #fff;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.25s ease;
+    will-change: transform;
 }
 
 .task-card.completed {
@@ -229,32 +201,45 @@ body {
     white-space: nowrap;
 }
 
-.media-badge {
-    font-size: 0.65rem;
-    background: #d4e0d0;
-    padding: 2px 10px;
-    border-radius: 30px;
-    color: #4a7a5a;
-    font-weight: normal;
-    white-space: nowrap;
-}
-
 .check-icon {
     font-size: 1.5rem;
     width: 32px;
     text-align: center;
     color: #d99464;
-    margin-left: 8px;
 }
 
-.empty-msg {
-    text-align: center;
-    color: #cdb092;
-    padding: 30px;
-    background: #fff3e6;
-    border-radius: 48px;
+/* ===================== 左滑操作按钮 ===================== */
+.task-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    z-index: 1;
 }
 
+.task-actions button {
+    border: none;
+    color: #fff;
+    width: 56px;
+    height: 100%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-btn {
+    background: #6366f1; /* 蓝紫 */
+}
+
+.done-btn {
+    background: #22c55e; /* 绿色 */
+}
+
+/* ===================== 弹窗 ===================== */
 .modal-mask {
     position: fixed;
     top: 0;
@@ -287,9 +272,10 @@ body {
     box-shadow: 0 30px 40px rgba(0, 0, 0, 0.2);
 }
 
-.modal-container input {
+.modal-container input,
+.modal-container select {
     width: 100%;
-    padding: 14px 16px;
+    padding: 12px 16px;
     font-size: 1rem;
     border: 1.5px solid #f3dbc6;
     border-radius: 60px;
@@ -299,37 +285,19 @@ body {
     background: white;
 }
 
-.repeat-options {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin: 15px 0 20px;
-    flex-wrap: wrap;
-}
-
-.repeat-option {
-    background: #f3e9e0;
-    border: 2px solid transparent;
-    padding: 8px 20px;
-    border-radius: 40px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: 0.1s;
-    color: #876b51;
-}
-
-.repeat-option.selected {
-    background: #d99464;
-    color: white;
-    border-color: #b45f36;
+.modal-container label {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #555;
+    text-align: left;
 }
 
 .modal-buttons {
     display: flex;
     gap: 16px;
     justify-content: center;
-    margin-top: 12px;
+    margin-top: 18px;
     flex-wrap: wrap;
 }
 
@@ -340,6 +308,7 @@ body {
     border-radius: 40px;
     font-weight: 600;
     cursor: pointer;
+    font-size: 0.95rem;
 }
 
 .modal-btn.confirm {
@@ -348,295 +317,65 @@ body {
 }
 
 .modal-btn.danger {
-    background: #e0b49b;
-    color: #8b3c1c;
+    background: #ef4444;
+    color: #fff;
 }
 
-.warning-modal .modal-container {
-    max-width: 360px;
-    border-left: 6px solid #e0a878;
+/* ===================== 相册 ===================== */
+#galleryModal {
+    background: rgba(0, 0, 0, 0.95);
 }
 
-.warning-msg {
-    color: #b45f36;
-    margin: 16px 0;
-    line-height: 1.4;
-    white-space: pre-line;
-}
-
-.overview-container {
-    background: #fffbf4;
-    border-radius: 56px;
-    padding: 20px;
-}
-
-.overview-header {
+#galleryModal .gallery-item {
+    flex: 0 0 100vw;
+    height: 100vh;
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    margin-bottom: 24px;
-    padding: 0 8px;
+    align-items: center;
+    justify-content: center;
 }
 
-.overview-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #b96f41;
+#galleryModal .gallery-item img,
+#galleryModal .gallery-item video {
+    max-width: 100vw;
+    max-height: 100vh;
+    object-fit: contain;
 }
 
-.stats-badge {
-    background: #f0e0d0;
-    padding: 8px 18px;
-    border-radius: 40px;
-    color: #8b5a3c;
-    font-weight: 500;
-}
-
-.month-section {
-    margin-bottom: 32px;
-}
-
-.month-badge {
-    font-size: 1.3rem;
-    font-weight: 600;
-    background: #f7e5d6;
-    display: inline-block;
-    padding: 5px 24px;
-    border-radius: 60px;
-    margin-bottom: 16px;
-    color: #b06439;
-}
-
-.week-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.week-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    background: #fff7ef;
+/* ===================== 空状态 ===================== */
+.empty-msg {
+    text-align: center;
+    color: #cdb092;
+    padding: 30px;
+    background: #fff3e6;
     border-radius: 48px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
 }
 
-.week-label {
-    width: 70px;
-    font-weight: 600;
-    color: #c6895c;
-    font-size: 0.85rem;
-}
-
-.day-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    flex: 1;
-}
-
-.day-summary {
-    background: white;
-    border-radius: 32px;
-    padding: 8px 12px;
-    min-width: 70px;
-    text-align: center;
-    cursor: pointer;
-    border: 1px solid #ffe3cf;
-    transition: 0.1s;
-}
-
-.day-summary:active {
-    transform: scale(0.96);
-}
-
-.day-num {
-    font-weight: 700;
-    font-size: 0.9rem;
-}
-
-.completion-rate {
-    font-size: 0.7rem;
-    color: #8fad7a;
-    font-weight: 500;
-}
-
-.loading {
-    text-align: center;
-    padding: 40px;
-    color: #b87a53;
-}
-
+/* ===================== Footer ===================== */
 footer {
     text-align: center;
     margin-top: 40px;
     color: #cfa882;
-    font-size: 0.75rem;
-    cursor: pointer;
+    font-size: 0.78rem;
     user-select: none;
 }
 
-/* 媒体预览 */
-#mediaPreview img,
-#mediaPreview video {
-    max-width: 100%;
-    max-height: 200px;
-    border-radius: 16px;
-    margin: 8px 0;
-}
-
-#viewMediaContent img,
-#viewMediaContent video {
-    max-width: 100%;
-    max-height: 70vh;
-    border-radius: 16px;
-}
-
+/* ===================== 响应式 ===================== */
 @media (max-width: 760px) {
     .tasks-grid {
         flex-direction: column;
     }
+
     .day-column.today-column {
         order: -1;
     }
-    .week-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .week-label {
-        width: auto;
-    }
+
     .task-left {
         flex-direction: column;
         align-items: flex-start;
         gap: 6px;
     }
-    .repeat-badge {
-        font-size: 0.65rem;
+
+    .date-navigation {
+        padding: 6px 8px;
     }
-    .top-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .back-today-btn {
-        justify-content: center;
-    } 
-}
-#galleryModal {
-  background: rgba(0,0,0,0.95);
-}
-
-#galleryModal .gallery-item {
-  flex: 0 0 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#galleryModal .gallery-item img,
-#galleryModal .gallery-item video {
-  max-width: 100vw;
-  max-height: 100vh;
-  object-fit: contain;
-}
-
-#galleryModal .close-btn {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 9999;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  border: none;
-  font-size: 24px;
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  cursor: pointer;
-}
-
-/* 顶部栏 */
-.top-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-}
-.date-info {
-  flex: 1;
-  text-align: center;
-  font-weight: 600;
-}
-.add-task-top-btn {
-  font-size: 18px;
-  background: rgba(79, 70, 229, 0.08);
-  color: #4f46e5;
-  border: none;
-  border-radius: 10px;
-  padding: 6px 14px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-/* 添加弹窗表单 */
-#taskModal label {
-  display: block;
-  margin: 10px 0 4px;
-  font-size: 14px;
-  color: #555;
-}
-#taskModal input[type="datetime-local"],
-#taskModal select {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  box-sizing: border-box;
-}
-
-/* 左滑包装 */
-.task-card-wrapper {
-  position: relative;
-  overflow: hidden;
-  border-radius: 14px;
-  margin-bottom: 10px;
-  background: #fff;
-}
-.task-card-wrapper .task-card {
-  background: #fff;
-  padding: 14px;
-  transition: transform .25s ease;
-  will-change: transform;
-}
-.task-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  display: flex;
-  z-index: 1;
-}
-/* ✅ 按钮样式统一 */
-.task-actions button {
-  border: none;
-  color: #fff;
-  padding: 0 18px;
-  font-size: 14px;
-  cursor: pointer;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.edit-btn {
-  background: rgba(79, 70, 229, 0.85);
-}
-
-.delete-btn {
-  background: rgba(239, 68, 68, 0.85);
 }
