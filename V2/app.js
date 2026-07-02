@@ -1,17 +1,21 @@
 // ============================================================
-// 暑假任务管家 · 最全完整版（Cloudflare D1 + R2）
-// ✅ 支持：多图上传 / iOS 风格相册 / 动态 DOM 绑定
+// 暑假任务管家 · 最终完整版
+// ✅ 顶部添加按钮
+// ✅ 日期时间选择 + 下拉重复
+// ✅ 左滑编辑 / 删除（微信风格）
+// ✅ 编辑任务回填
 // ============================================================
 
 (function () {
-  console.log('🚀 最全完整版启动');
+  console.log('🚀 最终完整版启动');
 
   const API = '/api';
   let currentCenterDate = new Date();
   let currentAddDate = null;
-  let currentRepeatType = 'once';
   let pendingTaskId = null;
   let selectedFiles = [];
+  let isEditingTaskId = null;   // ✅ 编辑模式标识
+  let swipeStartX = 0;          // ✅ 左滑用
 
   const $ = id => document.getElementById(id);
 
@@ -90,8 +94,11 @@
       String(d.getDate()).padStart(2, '0');
   }
 
-  function weekday(d) {
-    return ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[m]);
   }
 
   /* ========== 每日视图 ========== */
@@ -117,10 +124,9 @@
     grid.appendChild(column(right, r, '明天', 'tomorrow'));
 
     $('displayDate').textContent = formatYMD(currentCenterDate);
-    $('displayWeekday').textContent = weekday(currentCenterDate);
+    $('displayWeekday').textContent = ['周日','周一','周二','周三','周四','周五','周六'][currentCenterDate.getDay()];
 
     bindCardEvents();
-    bindAddButtons();
   }
 
   function column(date, tasks, label, type) {
@@ -139,14 +145,20 @@
     } else {
       tasks.forEach(t => {
         html += `
-          <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
-            <div class="task-left">
-              <span class="task-text">${escapeHtml(t.text)}</span>
-              <span class="repeat-badge">
-                ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
-              </span>
+          <div class="task-card-wrapper">
+            <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
+              <div class="task-left">
+                <span class="task-text">${escapeHtml(t.text)}</span>
+                <span class="repeat-badge">
+                  ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
+                </span>
+              </div>
+              <div class="check-icon">${t.completed ? '✓✓' : '○'}</div>
             </div>
-            <div class="check-icon">${t.completed ? '✓✓' : '○'}</div>
+            <div class="task-actions">
+              <button class="edit-btn">编辑</button>
+              <button class="delete-btn">删除</button>
+            </div>
           </div>
         `;
       });
@@ -157,101 +169,132 @@
     return col;
   }
 
-  function escapeHtml(s) {
-    if (!s) return '';
-    return s.replace(/[&<>"']/g, m => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[m]);
-  }
-
-  /* ========== 事件绑定（动态 DOM 安全） ========== */
+  /* ========== 卡片事件 ========== */
 
   function bindCardEvents() {
-    document.querySelectorAll('.task-card').forEach(card => {
-      card.onclick = async () => {
-        const id = card.dataset.id;
-        const completed = card.classList.contains('completed');
+    $('tasksGrid').onclick = async e => {
+      const wrapper = e.target.closest('.task-card-wrapper');
+      if (!wrapper) return;
 
-        if (completed) {
-          const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-          if (list.length) openGallery(list, 0);
-        } else {
-          pendingTaskId = id;
-          selectedFiles = [];
-          $('mediaPreview').innerHTML = '';
-          $('completeTaskModal').classList.add('active');
+      const card = wrapper.querySelector('.task-card');
+      const id = card.dataset.id;
+
+      // ✅ 删除
+      if (e.target.classList.contains('delete-btn')) {
+        if (!confirm('确定删除该任务？')) return;
+        await api(`/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        renderDailyView();
+        return;
+      }
+
+      // ✅ 编辑
+      if (e.target.classList.contains('edit-btn')) {
+        const list = await api(`/tasks?id=${encodeURIComponent(id)}`);
+        if (list.length) {
+          openAddModal(list[0].date, {
+            id: list[0].id,
+            text: list[0].task_text,
+            repeat_type: list[0].repeat_type
+          });
         }
+        return;
+      }
+
+      // ✅ 点击卡片：完成 / 查看相册
+      const completed = card.classList.contains('completed');
+      if (completed) {
+        const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
+        if (list.length) openGallery(list, 0);
+      } else {
+        pendingTaskId = id;
+        selectedFiles = [];
+        $('mediaPreview').innerHTML = '';
+        $('completeTaskModal').classList.add('active');
+      }
+    };
+
+    // ✅ 左滑
+    document.querySelectorAll('.task-card-wrapper').forEach(wrapper => {
+      const card = wrapper.querySelector('.task-card');
+      wrapper.ontouchstart = e => { swipeStartX = e.touches[0].clientX; };
+      wrapper.ontouchend = e => {
+        const diff = swipeStartX - e.changedTouches[0].clientX;
+        card.style.transform = diff > 80 ? 'translateX(-130px)' : 'translateX(0)';
+      };
+      wrapper.onmousedown = e => { swipeStartX = e.clientX; };
+      wrapper.onmouseup = e => {
+        const diff = swipeStartX - e.clientX;
+        card.style.transform = diff > 80 ? 'translateX(-130px)' : 'translateX(0)';
       };
     });
   }
 
-  function bindAddButtons() {
-    document.querySelectorAll('.add-task-btn').forEach(btn => {
-      btn.onclick = e => {
-        e.stopPropagation();
-        openAddModal(btn.dataset.date);
-      };
-    });
-  }
+  /* ========== 添加 / 编辑任务弹窗 ========== */
 
-  /* ========== 添加任务 ========== */
-
-  function openAddModal(date) {
+  function openAddModal(date, editTask) {
     currentAddDate = date;
-    currentRepeatType = 'once';
-    $('taskTitleInput').value = '';
-    document.querySelectorAll('.repeat-option').forEach(o =>
-      o.classList.toggle('selected', o.dataset.repeat === 'once')
-    );
+    isEditingTaskId = editTask ? editTask.id : null;
+
+    const now = new Date();
+    now.setSeconds(0);
+    $('taskDateTimeInput').value = now.toISOString().slice(0, 16);
+
+    $('taskTitleInput').value = editTask
+      ? editTask.text.replace(/^\[\d{2}:\d{2}\]\s*/, '')
+      : '';
+
+    $('repeatSelect').value = editTask ? editTask.repeat_type : 'once';
+
     $('taskModal').classList.add('active');
     $('taskTitleInput').focus();
   }
 
-  document.querySelectorAll('.repeat-option').forEach(opt => {
-    opt.onclick = () => {
-      document.querySelectorAll('.repeat-option').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      currentRepeatType = opt.dataset.repeat;
-    };
-  });
-
-  $('confirmAddBtn').onclick = async () => {
-    const text = $('taskTitleInput').value.trim();
-    if (!text) return alert('请输入任务内容');
-    await upsertTask({
-      id: crypto.randomUUID(),
-      date: currentAddDate,
-      task_text: text,
-      completed: false,
-      repeat_type: currentRepeatType
-    });
-    $('taskModal').classList.remove('active');
-    renderDailyView();
+  $('addTaskTopBtn').onclick = () => {
+    openAddModal(formatYMD(currentCenterDate));
   };
 
   $('cancelModalBtn').onclick = () => {
     $('taskModal').classList.remove('active');
+    isEditingTaskId = null;
+  };
+
+  $('confirmAddBtn').onclick = async () => {
+    const text = $('taskTitleInput').value.trim();
+    if (!text) return alert('请输入任务内容');
+
+    const dt = new Date($('taskDateTimeInput').value);
+    const date = formatYMD(dt);
+    const time =
+      ('0' + dt.getHours()).slice(-2) + ':' +
+      ('0' + dt.getMinutes()).slice(-2);
+    const fullText = `[${time}] ${text}`;
+
+    if (isEditingTaskId) {
+      await api(`/tasks?id=${encodeURIEncode(isEditingTaskId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_text: fullText,
+          date,
+          repeat_type: $('repeatSelect').value
+        })
+      });
+    } else {
+      await upsertTask({
+        id: crypto.randomUUID(),
+        date,
+        task_text: fullText,
+        completed: false,
+        repeat_type: $('repeatSelect').value
+      });
+    }
+
+    $('taskModal').classList.remove('active');
+    isEditingTaskId = null;
+    renderDailyView();
   };
 
   /* ========== 完成任务 ========== */
-
-  $('chooseMediaBtn').onclick = () => $('mediaFileInput').click();
-
-  $('mediaFileInput').onchange = e => {
-    selectedFiles = Array.from(e.target.files);
-    $('mediaPreview').innerHTML = '';
-    selectedFiles.forEach(f => {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const el = document.createElement(f.type.startsWith('video') ? 'video' : 'img');
-        el.src = ev.target.result;
-        el.style = 'max-width:100px;max-height:100px;margin:4px;border-radius:12px;';
-        if (f.type.startsWith('video')) el.controls = true;
-        $('mediaPreview').appendChild(el);
-      };
-      reader.readAsDataURL(f);
-    });
-  };
 
   $('cancelCompleteBtn').onclick = () => {
     $('completeTaskModal').classList.remove('active');
@@ -267,125 +310,37 @@
     renderDailyView();
   };
 
-  /* ========== iOS 风格相册 ========== */
+  /* ========== 相册 ========== */
 
   let galleryItems = [];
   let galleryIndex = 0;
-  let touchStartX = 0;
-  let mouseDownX = 0;
 
-function openGallery(items, index = 0) {
-  galleryItems = items;
-  galleryIndex = index;
+  function openGallery(items, index) {
+    galleryItems = items;
+    galleryIndex = index;
 
-  const modal = $('galleryModal');
-  const track = $('galleryTrack');
-  track.innerHTML = '';
+    const modal = $('galleryModal');
+    const track = $('galleryTrack');
+    track.innerHTML = '';
 
-  items.forEach(m => {
-    const div = document.createElement('div');
-    div.className = 'gallery-item';
-    if (m.media_type === 'video') {
-      div.innerHTML = `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`;
-    } else {
-      div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
-    }
-    track.appendChild(div);
-  });
+    items.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'gallery-item';
+      div.innerHTML = m.media_type === 'video'
+        ? `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`
+        : `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+      track.appendChild(div);
+    });
 
-  track.style.transform = `translateX(-${index * 100}vw)`;
-  modal.classList.add('active');
+    track.style.transform = `translateX(-${index * 100}vw)`;
+    modal.classList.add('active');
 
-  // ✅ 强制创建关闭按钮（不再依赖 HTML）
-  let closeBtn = modal.querySelector('.close-btn');
-  if (!closeBtn) {
-    closeBtn = document.createElement('button');
-    closeBtn.className = 'close-btn';
-    closeBtn.innerHTML = '×';
-    closeBtn.style.cssText = `
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      z-index: 9999;
-      background: rgba(0,0,0,.6);
-      color: #fff;
-      border: none;
-      font-size: 32px;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      cursor: pointer;
-      line-height: 1;
-    `;
-    modal.appendChild(closeBtn);
+    modal.onclick = e => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    };
   }
-
-  closeBtn.onclick = closeGallery;
-
-  // ✅ 点击背景关闭
-  modal.onclick = e => {
-    if (e.target === modal) closeGallery();
-  };
-
-  // ✅ 键盘支持
-  document.onkeydown = e => {
-    if (e.key === 'ArrowRight') nextGallery();
-    if (e.key === 'ArrowLeft') prevGallery();
-    if (e.key === 'Escape') closeGallery();
-  };
-
-  // ✅ 触摸滑动
-  modal.ontouchstart = e => { touchStartX = e.touches[0].clientX; };
-  modal.ontouchend = e => {
-    const diff = touchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
-  };
-
-  // ✅ 鼠标拖拽
-  modal.onmousedown = e => { mouseDownX = e.clientX; };
-  modal.onmouseup = e => {
-    const diff = mouseDownX - e.clientX;
-    if (Math.abs(diff) > 50) diff > 0 ? nextGallery() : prevGallery();
-  };
-}
-
-function closeGallery() {
-  const modal = $('galleryModal');
-  if (modal) modal.classList.remove('active');
-  document.onkeydown = null;
-}
-
-  function nextGallery() {
-    if (galleryIndex < galleryItems.length - 1) {
-      galleryIndex++;
-      updateGallery();
-    }
-  }
-
-  function prevGallery() {
-    if (galleryIndex > 0) {
-      galleryIndex--;
-      updateGallery();
-    }
-  }
-
-  function updateGallery() {
-    const t = $('galleryTrack');
-    if (t) t.style.transform = `translateX(-${galleryIndex * 100}vw)`;
-  }
-
-  function closeGallery() {
-    $('galleryModal').classList.remove('active');
-    document.onkeydown = null;
-  }
-
-  // 关闭按钮
-  const closeBtn = document.querySelector('#galleryModal .close-btn');
-  if (closeBtn) closeBtn.onclick = closeGallery;
-
-  $('galleryModal').onclick = e => {
-    if (e.target === $('galleryModal')) closeGallery();
-  };
 
   /* ========== 日期导航 ========== */
 
