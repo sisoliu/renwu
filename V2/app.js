@@ -1,5 +1,5 @@
 (function () {
-    console.log('🚀 暑假任务管家 · 修正版启动');
+    console.log('🚀 暑假任务管家');
 
     const API = '/api';
     let currentCenterDate = new Date();
