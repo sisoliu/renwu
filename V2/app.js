@@ -178,7 +178,9 @@ function bindCardEvents() {
         if (e.target.classList.contains('media-btn')) {
             const id = e.target.dataset.id;
             const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-            if (list.length) openGallery(list, 0);
+            if (list.length) {
+                openGallery(list, 0);
+                }
           return;
       }
 
@@ -370,4 +372,20 @@ function openGallery(items, index) {
     /* ========== 启动 ========== */
     currentCenterDate.setHours(0, 0, 0, 0);
     renderDailyView();
+    // ✅ 删除任务（事件委托，稳定可靠）
+    document.addEventListener('click', async e => {
+        if (e.target.id === 'deleteTaskBtn') {
+            if (!isEditingTaskId) return;
+            if (!confirm('确定删除该任务？')) return;
+
+            await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
+                method: 'DELETE'
+            });
+
+            $('taskModal').classList.remove('active');
+            isEditingTaskId = null;
+            renderDailyView();
+        }
+    });
+
 })();
