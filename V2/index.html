@@ -9,11 +9,15 @@
 <body>
 <div class="app-container">
     <div class="top-bar">
-        <div class="view-toggle">
-            <button class="toggle-btn active" id="dailyViewBtn">📅 每日任务</button>
-            <button class="toggle-btn" id="overviewViewBtn">🌞 暑假总览</button>
-        </div>
-        <button class="back-today-btn" id="backTodayBtn">📍 返回今天</button>
+      <button id="prevDayBtn">←</button>
+      <div class="date-info">
+        <span id="displayDate"></span>
+        <span id="displayWeekday"></span>
+      </div>
+      <button id="backTodayBtn">今天</button>
+      <!-- ✅ 新增 -->
+      <button id="addTaskTopBtn" class="add-task-top-btn">＋</button>
+      <button id="nextDayBtn">→</button>
     </div>
 
     <div id="dailyViewPanel">
@@ -43,20 +47,26 @@
     
 <!-- 添加任务模态框 -->
 <div id="taskModal" class="modal-mask">
-    <div class="modal-container">
-        <h3>➕ 新任务</h3>
-        <input type="text" id="taskTitleInput" placeholder="任务内容, 例如: 背单词" autocomplete="off" />
-        <div style="font-size:0.85rem; text-align:left; margin-top:8px; color:#b87a53;">重复规则</div>
-        <div class="repeat-options">
-            <div data-repeat="once" class="repeat-option selected">📅 当天任务</div>
-            <div data-repeat="daily" class="repeat-option">🔄 每天重复</div>
-            <div data-repeat="weekly" class="repeat-option">📆 每周重复</div>
-        </div>
-        <div class="modal-buttons">
-            <button class="modal-btn" id="cancelModalBtn">取消</button>
-            <button class="modal-btn confirm" id="confirmAddBtn">添加任务</button>
-        </div>
+  <div class="modal-container">
+    <h3>添加任务</h3>
+
+    <input id="taskTitleInput" placeholder="任务内容" />
+
+    <label>日期时间</label>
+    <input id="taskDateTimeInput" type="datetime-local" />
+
+    <label>重复规则</label>
+    <select id="repeatSelect">
+      <option value="once">不重复</option>
+      <option value="daily">每天</option>
+      <option value="weekly">每周</option>
+    </select>
+
+    <div class="modal-buttons">
+      <button class="modal-btn" id="confirmAddBtn">确认</button>
+      <button class="modal-btn" id="cancelModalBtn">取消</button>
     </div>
+  </div>
 </div>
 
 <!-- 完成任务 - 上传媒体模态框 -->
