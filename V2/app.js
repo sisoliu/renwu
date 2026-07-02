@@ -373,19 +373,25 @@ function openGallery(items, index) {
     currentCenterDate.setHours(0, 0, 0, 0);
     renderDailyView();
     // ✅ 删除任务（事件委托，稳定可靠）
-    document.addEventListener('click', async e => {
-        if (e.target.id === 'deleteTaskBtn') {
-            if (!isEditingTaskId) return;
-            if (!confirm('确定删除该任务？')) return;
+document.addEventListener('click', async e => {
+    if (e.target.id === 'deleteTaskBtn') {
+        if (!isEditingTaskId) return;
+        if (!confirm('确定删除该任务？')) return;
 
-            await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
-                method: 'DELETE'
-            });
+        // ✅ 用 PATCH 模拟删除（后端支持）
+        await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                completed: 1,
+                task_text: '[已删除]'
+            })
+        });
 
-            $('taskModal').classList.remove('active');
-            isEditingTaskId = null;
-            renderDailyView();
-        }
-    });
+        $('taskModal').classList.remove('active');
+        isEditingTaskId = null;
+        renderDailyView();
+    }
+});
 
 })();
