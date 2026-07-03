@@ -8,7 +8,6 @@ function nowCST() {
 
     const API = '/api';
     let currentCenterDate = new Date();
-    let currentAddDate = null;
     let pendingTaskId = null;
     let selectedFiles = [];
     let isEditingTaskId = null;
@@ -123,7 +122,7 @@ function nowCST() {
 
         bindCardEvents();
 
-        // 填充已完成任务的媒体按钮
+        // 已完成任务：仅在有媒体时显示 🖼️
         const completedCards = document.querySelectorAll('.task-card.completed');
         for (const card of completedCards) {
             const id = card.dataset.id;
@@ -156,7 +155,7 @@ function nowCST() {
                     <div class="task-left">
                         <span class="task-text">${escapeHtml(t.text)}</span>
                         <span class="repeat-badge">
-                            ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
+                            ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
                         </span>
                     </div>`;
 
@@ -183,7 +182,6 @@ function nowCST() {
     function bindCardEvents() {
         $('tasksGrid').onclick = async e => {
 
-            // 查看媒体
             if (e.target.classList.contains('media-btn')) {
                 const id = e.target.dataset.id;
                 const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
@@ -191,7 +189,6 @@ function nowCST() {
                 return;
             }
 
-            // 编辑任务
             if (e.target.classList.contains('edit-btn')) {
                 const wrapper = e.target.closest('.task-card-wrapper');
                 const id = wrapper.querySelector('.task-card').dataset.id;
@@ -206,7 +203,6 @@ function nowCST() {
                 return;
             }
 
-            // 完成任务
             if (e.target.classList.contains('done-btn')) {
                 const wrapper = e.target.closest('.task-card-wrapper');
                 const id = wrapper.querySelector('.task-card').dataset.id;
@@ -217,7 +213,6 @@ function nowCST() {
                 return;
             }
 
-            // 删除任务（软删除）
             if (e.target.id === 'deleteTaskBtn') {
                 if (!isEditingTaskId) return;
                 if (!confirm('确定删除该任务？')) return;
@@ -238,9 +233,8 @@ function nowCST() {
         };
     }
 
-    /* ========== 添加 / 编辑任务弹窗 ========== */
+    /* ========== 添加 / 编辑任务 ========== */
     function openAddModal(date, editTask) {
-        currentAddDate = date;
         isEditingTaskId = editTask ? editTask.id : null;
 
         $('taskModalTitle').textContent = editTask ? '编辑任务' : '添加任务';
@@ -293,7 +287,12 @@ function nowCST() {
                 })
             });
         } else {
-            await upsert(updateTask);
+            await upsertTask({
+                id: crypto.randomUUID(),
+                task_text: fullText,
+                date,
+                repeat_type: $('repeatSelect').value
+            });
         }
 
         $('taskModal').classList.remove('active');
@@ -329,7 +328,7 @@ function nowCST() {
         renderDailyView();
     };
 
-    /* ========== 相册 + 滑动 = ========== */
+    /* ========== 相册 & 滑动 ========== */
     function openGallery(items, index) {
         galleryItems = items;
         galleryIndex = index;
@@ -392,7 +391,7 @@ function nowCST() {
         $('overviewViewPanel').style.display = 'none';
         $('dailyViewPanel').style.display = 'block';
     };
-    
+
     $('backTodayBtn').onclick = () => {
         currentCenterDate = new Date();
         currentCenterDate.setHours(0, 0, 0, 0);
@@ -423,7 +422,7 @@ function nowCST() {
         let html = `<h2 style="text-align:center;margin-bottom:12px;">${year}年 ${month + 1}月</h2>`;
         html += `<div class="calendar-grid">`;
 
-        ['日', '一', '二', '三', '四', '五', '六'].forEach(d =>
+        ['日','一','二','三','四','五','六'].forEach(d =>
             html += `<div style="font-weight:bold;color:#b4825a;">${d}</div>`
         );
 
@@ -444,30 +443,30 @@ function nowCST() {
 
             html += `<div 
                 class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}"
-                data-date="${dateStr}">
+                data-date="${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}">
                 ${d}${hasTask ? '●' : ''}
             </div>`;
         }
 
         html += `</div>`;
         container.innerHTML = html;
-    };
-    // 点击日历日期 → 回到当日任务
-    container.querySelectorAll('.calendar-day[data-date]').forEach(day => {
-        day.style.cursor = 'pointer';
-        day.onclick = () => {
-            const dateStr = day.dataset.date;
-            const [y, m, d] = dateStr.split('-').map(Number);
-            currentCenterDate = new Date(y, m - 1, d);
-            currentCenterDate.setHours(0, 0, 0, 0);
 
-            // 切回每日视图
-            $('overviewViewPanel').style.display = 'none';
-            $('dailyViewPanel').style.display = 'block';
-            renderDailyView();
-        };
-    });
-    
+        // ✅ 日历点击 → 切回当日任务
+        container.querySelectorAll('.calendar-day[data-date]').forEach(day => {
+            day.style.cursor = 'pointer';
+            day.onclick = () => {
+                const dateStr = day.dataset.date;
+                const [y, m, d] = dateStr.split('-').map(Number);
+                currentCenterDate = new Date(y, m - 1, d);
+                currentCenterDate.setHours(0, 0, 0, 0);
+
+                $('overviewViewPanel').style.display = 'none';
+                $('dailyViewPanel').style.display = 'block';
+                renderDailyView();
+            };
+        });
+    };
+
     /* ========== 日期导航 ========== */
     $('prevDayBtn').onclick = () => {
         currentCenterDate.setDate(currentCenterDate.getDate() - 1);
