@@ -156,7 +156,7 @@ function nowCST() {
                     <div class="task-left">
                         <span class="task-text">${escapeHtml(t.text)}</span>
                         <span class="repeat-badge">
-                            ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
+                            ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
                         </span>
                     </div>`;
 
