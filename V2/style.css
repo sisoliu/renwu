@@ -434,3 +434,31 @@ footer {
 .add-task-top-btn {
     display: none;
 }
+
+.overview-container {
+    padding: 20px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    text-align: center;
+}
+
+.calendar-day {
+    background: #fff;
+    border-radius: 16px;
+    padding: 10px 4px;
+    font-size: 0.85rem;
+    color: #5a3e2b;
+}
+
+.calendar-day.has-task {
+    background: #fde8d0;
+    font-weight: bold;
+}
+
+.calendar-day.today {
+    border: 2px solid #d99464;
+}
