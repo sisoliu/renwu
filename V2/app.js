@@ -24,12 +24,14 @@ function nowCST() {
     }
 
     async function getTasks(date) {
-        return (await api(`/tasks?date=${encodeURIComponent(date)}`)).map(t => ({
-            id: t.id,
-            text: t.task_text,
-            completed: !!t.completed,
-            repeat_type: t.repeat_type || 'once'
-        }));
+        return (await api(`/tasks?date=${encodeURIComponent(date)}`))
+            .filter(t => !t.task_text?.startsWith('[已删除]'))
+            .map(t => ({
+                id: t.id,
+                text: t.task_text,
+                completed: !!t.completed,
+                repeat_type: t.repeat_type || 'once'
+            }));
     }
 
     async function upsertTask(t) {
@@ -118,6 +120,22 @@ async function renderDailyView() {
     $('displayWeekday').textContent = ['周日','周一','周二','周三','周四','周五','周六'][base.getDay()];
 
     bindCardEvents();
+   $('displayDate').textContent = formatYMD(base);
+    $('displayWeekday').textContent = ['周日','周一','周二','周三','周四','周五','周六'][base.getDay()];
+
+    bindCardEvents();
+
+    // 填充已完成任务的媒体按钮
+    const completedCards = document.querySelectorAll('.task-card.completed');
+    for (const card of completedCards) {
+        const id = card.dataset.id;
+        const media = await api(`/media?task_id=${encodeURIComponent(id)}`);
+        const placeholder = card.parentElement.querySelector('.task-right');
+        if (media.length && placeholder) {
+            placeholder.innerHTML = `<button class="media-btn" data-id="${id}" title="查看媒体">🖼️</button>`;
+        }
+    }
+} 
 }
 
 function column(date, tasks, label, type) {
@@ -143,16 +161,14 @@ function column(date, tasks, label, type) {
                 <div class="task-left">
                     <span class="task-text">${escapeHtml(t.text)}</span>
                     <span class="repeat-badge">
-                        ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : '当天'}
+                        ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
                     </span>
                 </div>`;
 
             // 右侧操作区
             if (t.completed) {
                 html += `
-                <div class="task-right">
-                    <button class="media-btn" data-id="${t.id}" title="查看媒体">🖼️</button>
-                </div>`;
+                <div class="task-right" data-media-placeholder="${t.id}"></div>
             } else {
                 html += `
                 <div class="task-right">
@@ -393,5 +409,79 @@ document.addEventListener('click', async e => {
         renderDailyView();
     }
 });
+(() => {
+    const modal = $('galleryModal');
+    const track = $('galleryTrack');
+    let startX = 0;
 
+    modal.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+    }, { passive: true });
+
+    modal.addEventListener('touchend', e => {
+        const endX = e.changedTouches[0].clientX;
+        const diff = startX - endX;
+
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && galleryIndex < galleryItems.length - 1) {
+                galleryIndex++;
+            }
+            if (diff < 0 && galleryIndex > 0) {
+                galleryIndex--;
+            }
+            track.style.transform = `translateX(-${galleryIndex * 100}vw)`;
+        }
+    }, { passive: true });
+    
+    $('backTodayBtn').onclick = () => {
+    currentCenterDate = new Date();
+    currentCenterDate.setHours(0, 0, 0, 0);
+    renderDailyView();
+};
+
+    $('overviewBtn').onclick = async () => {
+    const panel = $('overviewViewPanel');
+    const daily = $('dailyViewPanel');
+
+    if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+        daily.style.display = 'block';
+        return;
+    }
+
+    daily.style.display = 'none';
+    panel.style.display = 'block';
+
+    const container = $('overviewContainer');
+    container.innerHTML = '';
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let html = `<h2 style="text-align:center;margin-bottom:12px;">${year}年 ${month + 1}月</h2>`;
+    html += `<div class="calendar-grid">`;
+
+    ['日','一','二','三','四','五','六'].forEach(d =>
+        html += `<div style="font-weight:bold;color:#b4825a;">${d}</div>`
+    );
+
+    const firstDay = new Date(year, month, 1).getDay();
+    for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const tasks = await getTasks(dateStr);
+        const hasTask = tasks.length > 0;
+        const isToday = d === now.getDate();
+
+        html += `<div class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}">
+            ${d}${hasTask ? '●' : ''}
+        </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+};
 })();
