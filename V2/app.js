@@ -388,6 +388,11 @@ function nowCST() {
     })();
 
     /* ========== 底部按钮 ========== */
+    $('closeOverviewBtn').onclick = () => {
+        $('overviewViewPanel').style.display = 'none';
+        $('dailyViewPanel').style.display = 'block';
+    };
+    
     $('backTodayBtn').onclick = () => {
         currentCenterDate = new Date();
         currentCenterDate.setHours(0, 0, 0, 0);
