@@ -23,6 +23,11 @@
         </div>
     </div>
 
+  <!-- ✅ 任务总览面板（新增） -->
+    <div id="overviewViewPanel" style="display: none;">
+        <div class="overview-container" id="overviewContainer"></div>
+    </div>  
+
     <div id="overviewViewPanel" style="display: none;">
         <div class="overview-container" id="overviewContainer"></div>
     </div>
@@ -86,7 +91,10 @@
     </div>
 </div>
 
-<footer id="appFooter">✅ 点击 ✔️ 完成任务 | ✏️ 编辑任务 | 左滑显示操作</footer>
+<footer style="position: sticky; bottom: 0; background: #fff8eb; padding: 10px 16px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid #f0cfae; z-index: 100;">
+    <button id="backTodayBtn" class="modal-btn" style="background:#d99464;color:#fff;">📅 返回今天</button>
+    <button id="overviewBtn" class="modal-btn" style="background:#6366f1;color:#fff;">🗓 任务总览</button>
+</footer>
 
 <script src="app.js"></script>
 </body>
