@@ -499,3 +499,34 @@ footer {
 .overview-close:hover {
     color: #8b5e3c;
 }
+
+.month-switch {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #b4825a;
+    cursor: pointer;
+    padding: 4px 10px;
+}
+
+.month-switch:hover {
+    color: #8b5e3c;
+}
+
+.overview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #fff8eb;
+    border-bottom: 1px solid #f0cfae;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#overviewTitle {
+    font-weight: 600;
+    color: #5a3e2b;
+    font-size: 1.05rem;
+}
