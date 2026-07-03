@@ -452,6 +452,7 @@ footer {
     padding: 10px 4px;
     font-size: 0.85rem;
     color: #5a3e2b;
+    transition: background 0.15s ease;
 }
 
 .calendar-day.has-task {
@@ -461,4 +462,8 @@ footer {
 
 .calendar-day.today {
     border: 2px solid #d99464;
+}
+
+.calendar-day:hover {
+    background: #f5d8b8;
 }
