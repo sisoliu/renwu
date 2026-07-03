@@ -467,3 +467,35 @@ footer {
 .calendar-day:hover {
     background: #f5d8b8;
 }
+
+/* 总览头部 */
+.overview-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #fff8eb;
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #5a3e2b;
+    border-bottom: 1px solid #f0cfae;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 关闭按钮 */
+.overview-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: #b4825a;
+    cursor: pointer;
+    padding: 0 6px;
+    transition: color 0.15s ease;
+}
+
+.overview-close:hover {
+    color: #8b5e3c;
+}
