@@ -437,7 +437,9 @@ function nowCST() {
             const hasTask = results[d - 1].length > 0;
             const isToday = d === now.getDate();
 
-            html += `<div class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}">
+            html += `<div 
+                class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}"
+                data-date="${dateStr}">
                 ${d}${hasTask ? '●' : ''}
             </div>`;
         }
@@ -445,7 +447,22 @@ function nowCST() {
         html += `</div>`;
         container.innerHTML = html;
     };
+    // 点击日历日期 → 回到当日任务
+    container.querySelectorAll('.calendar-day[data-date]').forEach(day => {
+        day.style.cursor = 'pointer';
+        day.onclick = () => {
+            const dateStr = day.dataset.date;
+            const [y, m, d] = dateStr.split('-').map(Number);
+            currentCenterDate = new Date(y, m - 1, d);
+            currentCenterDate.setHours(0, 0, 0, 0);
 
+            // 切回每日视图
+            $('overviewViewPanel').style.display = 'none';
+            $('dailyViewPanel').style.display = 'block';
+            renderDailyView();
+        };
+    });
+    
     /* ========== 日期导航 ========== */
     $('prevDayBtn').onclick = () => {
         currentCenterDate.setDate(currentCenterDate.getDate() - 1);
