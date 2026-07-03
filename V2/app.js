@@ -135,7 +135,6 @@ async function renderDailyView() {
             placeholder.innerHTML = `<button class="media-btn" data-id="${id}" title="查看媒体">🖼️</button>`;
         }
     }
-} 
 }
 
 function column(date, tasks, label, type) {
@@ -168,9 +167,9 @@ function column(date, tasks, label, type) {
             // 右侧操作区
             if (t.completed) {
                 html += `
-                <div class="task-right" data-media-placeholder="${t.id}"></div>
+                <div class="task-right" data-media-placeholder="${t.id}"></div>`;
             } else {
-                html += `
+                 html += `
                 <div class="task-right">
                     <button class="edit-btn" data-id="${t.id}" title="编辑">✏️</button>
                     <button class="done-btn" data-id="${t.id}" title="完成任务">○</button>
@@ -437,7 +436,7 @@ document.addEventListener('click', async e => {
     currentCenterDate = new Date();
     currentCenterDate.setHours(0, 0, 0, 0);
     renderDailyView();
-};
+    };
 
     $('overviewBtn').onclick = async () => {
     const panel = $('overviewViewPanel');
