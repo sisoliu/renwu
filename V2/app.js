@@ -4,7 +4,7 @@ function nowCST() {
 }
 
 (function () {
-    console.log('🚀 暑假任务管家');
+    console.log('🚀 暑假任务管家（最终版）');
 
     const API = '/api';
     let currentCenterDate = new Date();
@@ -14,6 +14,10 @@ function nowCST() {
 
     let galleryItems = [];
     let galleryIndex = 0;
+
+    // 日历总览当前年月
+    let overviewYear = new Date().getFullYear();
+    let overviewMonth = new Date().getMonth();
 
     const $ = id => document.getElementById(id);
 
@@ -386,6 +390,69 @@ function nowCST() {
         }, { passive: true });
     })();
 
+    /* ========== 日历总览 ========== */
+    async function renderOverviewCalendar() {
+        const container = $('overviewContainer');
+        container.innerHTML = '';
+
+        const now = new Date();
+        const year = overviewYear;
+        const month = overviewMonth;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        $('overviewTitle').textContent = `${year}年 ${month + 1}月`;
+
+        let html = `<div class="calendar-grid">`;
+
+        ['日','一','二','三','四','五','六'].forEach(d =>
+            html += `<div style="font-weight:bold;color:#b4825a;">${d}</div>`
+        );
+
+        const firstDay = new Date(year, month, 1).getDay();
+        for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+
+        const promises = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            promises.push(getTasks(dateStr));
+        }
+
+        const results = await Promise.all(promises);
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const hasTask = results[d - 1].length > 0;
+            const isToday =
+                d === now.getDate() &&
+                month === now.getMonth() &&
+                year === now.getFullYear();
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            html += `<div 
+                class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}"
+                data-date="${dateStr}">
+                ${d}${hasTask ? '●' : ''}
+            </div>`;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+        container.querySelectorAll('.calendar-day[data-date]').forEach(day => {
+            day.style.cursor = 'pointer';
+            day.onclick = () => {
+                const dateStr = day.dataset.date;
+                const [y, m, d] = dateStr.split('-').map(Number);
+                currentCenterDate = new Date(y, m - 1, d);
+                currentCenterDate.setHours(0, 0, 0, 0);
+
+                $('overviewViewPanel').style.display = 'none';
+                $('dailyViewPanel').style.display = 'block';
+                renderDailyView();
+            };
+        });
+    }
+
     /* ========== 底部按钮 ========== */
     $('closeOverviewBtn').onclick = () => {
         $('overviewViewPanel').style.display = 'none';
@@ -411,60 +478,28 @@ function nowCST() {
         daily.style.display = 'none';
         panel.style.display = 'block';
 
-        const container = $('overviewContainer');
-        container.innerHTML = '';
+        overviewYear = new Date().getFullYear();
+        overviewMonth = new Date().getMonth();
 
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        await renderOverviewCalendar();
+    };
 
-        let html = `<h2 style="text-align:center;margin-bottom:12px;">${year}年 ${month + 1}月</h2>`;
-        html += `<div class="calendar-grid">`;
-
-        ['日','一','二','三','四','五','六'].forEach(d =>
-            html += `<div style="font-weight:bold;color:#b4825a;">${d}</div>`
-        );
-
-        const firstDay = new Date(year, month, 1).getDay();
-        for (let i = 0; i < firstDay; i++) html += `<div></div>`;
-
-        const promises = [];
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            promises.push(getTasks(dateStr));
+    $('prevMonthBtn').onclick = async () => {
+        overviewMonth--;
+        if (overviewMonth < 0) {
+            overviewMonth = 11;
+            overviewYear--;
         }
+        await renderOverviewCalendar();
+    };
 
-        const results = await Promise.all(promises);
-
-        for (let d = 1; d <= daysInMonth; d++) {
-            const hasTask = results[d - 1].length > 0;
-            const isToday = d === now.getDate();
-
-            html += `<div 
-                class="calendar-day ${hasTask ? 'has-task' : ''} ${isToday ? 'today' : ''}"
-                data-date="${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}">
-                ${d}${hasTask ? '●' : ''}
-            </div>`;
+    $('nextMonthBtn').onclick = async () => {
+        overviewMonth++;
+        if (overviewMonth > 11) {
+            overviewMonth = 0;
+            overviewYear++;
         }
-
-        html += `</div>`;
-        container.innerHTML = html;
-
-        // ✅ 日历点击 → 切回当日任务
-        container.querySelectorAll('.calendar-day[data-date]').forEach(day => {
-            day.style.cursor = 'pointer';
-            day.onclick = () => {
-                const dateStr = day.dataset.date;
-                const [y, m, d] = dateStr.split('-').map(Number);
-                currentCenterDate = new Date(y, m - 1, d);
-                currentCenterDate.setHours(0, 0, 0, 0);
-
-                $('overviewViewPanel').style.display = 'none';
-                $('dailyViewPanel').style.display = 'block';
-                renderDailyView();
-            };
-        });
+        await renderOverviewCalendar();
     };
 
     /* ========== 日期导航 ========== */
@@ -477,6 +512,11 @@ function nowCST() {
         currentCenterDate.setDate(currentCenterDate.getDate() + 1);
         renderDailyView();
     };
+
+    /* ========== PWA ========== */
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 
     /* ========== 启动 ========== */
     currentCenterDate.setHours(0, 0, 0, 0);
