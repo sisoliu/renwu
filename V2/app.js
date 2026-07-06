@@ -1,5 +1,5 @@
 /* =========================================================
-   刘昱君 · 暑假任务管家（最终版 · 统一事件委托）
+   刘昱君 · 暑假任务管家（最终版 · 事件委托 · 已修复）
    ========================================================= */
 
 function nowCST() {
@@ -8,7 +8,7 @@ function nowCST() {
 }
 
 (function () {
-    console.log('🚀 暑假任务管家（事件委托重构版）');
+    console.log('🚀 暑假任务管家（稳定版）');
 
     const API = '/api';
     let currentCenterDate = new Date();
@@ -19,7 +19,6 @@ function nowCST() {
     let galleryItems = [];
     let galleryIndex = 0;
 
-    // 日历总览当前年月
     let overviewYear = new Date().getFullYear();
     let overviewMonth = new Date().getMonth();
 
@@ -55,7 +54,10 @@ function nowCST() {
             await api('/tasks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...t, created_at: new Date().toISOString() })
+                body: JSON.stringify({
+                    ...t,
+                    created_at: new Date().toISOString()
+                })
             });
         }
     }
@@ -99,8 +101,12 @@ function nowCST() {
     function escapeHtml(s) {
         if (!s) return '';
         return s.replace(/[&<>"']/g, m => ({
-            '&': '&amp;', '<: '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[m]);
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m]));
     }
 
     /* ==================== 每日视图 ==================== */
@@ -112,7 +118,7 @@ function nowCST() {
         const left = new Date(base);
         left.setDate(left.getDate() - 1);
         const right = new Date(base);
-        right.setDate(right.getDate() + 1);
+        right.setDate(base.getDate() + 1);
 
         const [l, c, r] = await Promise.all([
             getTasks(formatYMD(left)),
@@ -126,9 +132,9 @@ function nowCST() {
         grid.appendChild(column(right, r, '明天', 'tomorrow'));
 
         $('displayDate').textContent = formatYMD(base);
-        $('displayWeekday').textContent = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][base.getDay()];
+        $('displayWeekday').textContent =
+            ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][base.getDay()];
 
-        // 已完成任务：仅在有媒体时显示 🖼️
         const completedCards = document.querySelectorAll('.task-card.completed');
         for (const card of completedCards) {
             const id = card.dataset.id;
@@ -152,39 +158,39 @@ function nowCST() {
         html += `</div><div class="tasks-list">`;
 
         if (!tasks.length) {
-            html += `<div class="empty-msg">暂无任务</div>`;
-        } else {
-            tasks.forEach(t => {
-                html += `<div class="task-card-wrapper">`;
-                html += `
-                <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
-                    <div class="task-left">
-                        <span class="task-text">${escapeHtml(t.text)}</span>
-                        <span class="repeat-badge">
-                            ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
-                        </span>
-                    </div>`;
-
-                if (t.completed) {
-                    html += `<div class="task-right" data-media-placeholder="${t.id}"></div>`;
-                } else {
-                    html += `
-                    <div class="task-right">
-                        <button class="edit-btn" data-id="${t.id}" title="编辑">✏️</button>
-                        <button class="done-btn" data-id="${t.id}" title="完成任务">○</button>
-                    </div>`;
-                }
-
-                html += `</div></div>`;
-            });
+            return col.innerHTML = html + `<div class="empty-msg">暂无任务</div></div>`, col;
         }
+
+        tasks.forEach(t => {
+            html += `<div class="task-card-wrapper">`;
+            html += `
+            <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
+                <div class="task-left">
+                    <span class="task-text">${escapeHtml(t.text)}</span>
+                    <span class="repeat-badge">
+                        ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
+                    </span>
+                </div>`;
+
+            if (t.completed) {
+                html += `<div class="task-right" data-media-placeholder="${t.id}"></div>`;
+            } else {
+                html += `
+                <div class="task-right">
+                    <button class="edit-btn" data-id="${t.id}" title="编辑">✏️</button>
+                    <button class="done-btn" data-id="${t.id}" title="完成任务">○</button>
+                </div>`;
+            }
+
+            html += `</div></div>`;
+        });
 
         html += `</div>`;
         col.innerHTML = html;
         return col;
     }
 
-    /* ==================== 弹窗：添加 / 编辑任务 ==================== */
+    /* ==================== 弹窗：添加 / 编辑 ==================== */
     function openAddModal(date, editTask) {
         isEditingTaskId = editTask ? editTask.id : null;
 
@@ -302,7 +308,6 @@ function nowCST() {
     document.addEventListener('click', async e => {
         const target = e.target;
 
-        /* 媒体查看 */
         if (target.classList.contains('media-btn')) {
             const id = target.dataset.id;
             const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
@@ -310,7 +315,6 @@ function nowCST() {
             return;
         }
 
-        /* 编辑任务 */
         if (target.classList.contains('edit-btn')) {
             const wrapper = target.closest('.task-card-wrapper');
             const id = wrapper.querySelector('.task-card').dataset.id;
@@ -325,7 +329,6 @@ function nowCST() {
             return;
         }
 
-        /* 完成任务 */
         if (target.classList.contains('done-btn')) {
             const wrapper = target.closest('.task-card-wrapper');
             const id = wrapper.querySelector('.task-card').dataset.id;
@@ -336,19 +339,16 @@ function nowCST() {
             return;
         }
 
-        /* 添加任务 */
         if (target.classList.contains('add-task-btn')) {
             openAddModal(target.dataset.date);
             return;
         }
 
-        /* 选择媒体 */
         if (target.id === 'chooseMediaBtn') {
             $('mediaFileInput').click();
             return;
         }
 
-        /* 清除媒体 */
         if (target.id === 'clearMediaBtn') {
             selectedFiles = [];
             $('mediaPreview').innerHTML = '';
@@ -356,18 +356,13 @@ function nowCST() {
             return;
         }
 
-        /* 弹窗取消 */
-        if (
-            target.id === 'cancelModalBtn' ||
-            target.id === 'cancelCompleteBtn'
-        ) {
+        if (target.id === 'cancelModalBtn' || target.id === 'cancelCompleteBtn') {
             $('taskModal').classList.remove('active');
             $('completeTaskModal').classList.remove('active');
             isEditingTaskId = null;
             return;
         }
 
-        /* 弹窗：确认添加 / 编辑任务 */
         if (target.id === 'confirmAddBtn') {
             const text = $('taskTitleInput').value.trim();
             if (!text) return alert('请输入任务内容');
@@ -404,7 +399,6 @@ function nowCST() {
             return;
         }
 
-        /* 弹窗：完成任务确认 */
         if (target.id === 'confirmCompleteBtn') {
             if (!pendingTaskId) return;
             if (selectedFiles.length) {
@@ -416,7 +410,7 @@ function nowCST() {
             return;
         }
 
-        /* ✅ 弹窗：删除任务（已修复） */
+        /* ✅ 删除任务（已修复） */
         if (target.id === 'deleteTaskBtn') {
             if (!isEditingTaskId) return;
             if (!confirm('确定删除该任务？')) return;
@@ -436,13 +430,11 @@ function nowCST() {
             return;
         }
 
-        /* 相册关闭 */
         if (target.classList.contains('gallery-close')) {
             $('galleryModal').classList.remove('active');
             return;
         }
 
-        /* 底部栏 */
         if (target.id === 'backTodayBtn') {
             currentCenterDate = new Date();
             currentCenterDate.setHours(0, 0, 0, 0);
@@ -469,7 +461,6 @@ function nowCST() {
             return;
         }
 
-        /* 总览月份切换 */
         if (target.id === 'prevMonthBtn') {
             overviewMonth--;
             if (overviewMonth < 0) {
@@ -496,7 +487,6 @@ function nowCST() {
             return;
         }
 
-        /* 日期导航 */
         if (target.id === 'prevDayBtn') {
             currentCenterDate.setDate(currentCenterDate.getDate() - 1);
             renderDailyView();
