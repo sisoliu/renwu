@@ -1,10 +1,14 @@
+/* =========================================================
+   刘昱君 · 暑假任务管家（最终版 · 统一事件委托）
+   ========================================================= */
+
 function nowCST() {
     const now = new Date();
     return new Date(now.getTime() + 8 * 60 * 60 * 1000);
 }
 
 (function () {
-    console.log('🚀 暑假任务管家（最终版）');
+    console.log('🚀 暑假任务管家（事件委托重构版）');
 
     const API = '/api';
     let currentCenterDate = new Date();
@@ -21,7 +25,7 @@ function nowCST() {
 
     const $ = id => document.getElementById(id);
 
-    /* ========== API ========== */
+    /* ==================== API ==================== */
     async function api(path, opt = {}) {
         const res = await fetch(API + path, opt);
         if (!res.ok) throw new Error(await res.text());
@@ -85,7 +89,7 @@ function nowCST() {
         }
     }
 
-    /* ========== 工具 ========== */
+    /* ==================== 工具 ==================== */
     function formatYMD(d) {
         return d.getFullYear() + '-' +
             String(d.getMonth() + 1).padStart(2, '0') + '-' +
@@ -95,11 +99,11 @@ function nowCST() {
     function escapeHtml(s) {
         if (!s) return '';
         return s.replace(/[&<>"']/g, m => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            '&': '&amp;', '<: '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         })[m]);
     }
 
-    /* ========== 每日视图 ========== */
+    /* ==================== 每日视图 ==================== */
     async function renderDailyView() {
         const grid = $('tasksGrid');
         grid.innerHTML = '<div class="loading">加载中…</div>';
@@ -123,8 +127,6 @@ function nowCST() {
 
         $('displayDate').textContent = formatYMD(base);
         $('displayWeekday').textContent = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][base.getDay()];
-
-        bindCardEvents();
 
         // 已完成任务：仅在有媒体时显示 🖼️
         const completedCards = document.querySelectorAll('.task-card.completed');
@@ -182,62 +184,7 @@ function nowCST() {
         return col;
     }
 
-    /* ========== 卡片事件 ========== */
-    function bindCardEvents() {
-        $('tasksGrid').onclick = async e => {
-
-            if (e.target.classList.contains('media-btn')) {
-                const id = e.target.dataset.id;
-                const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
-                if (list.length) openGallery(list, 0);
-                return;
-            }
-
-            if (e.target.classList.contains('edit-btn')) {
-                const wrapper = e.target.closest('.task-card-wrapper');
-                const id = wrapper.querySelector('.task-card').dataset.id;
-                const list = await api(`/tasks?id=${encodeURIComponent(id)}`);
-                if (list.length) {
-                    openAddModal(list[0].date, {
-                        id: list[0].id,
-                        text: list[0].task_text,
-                        repeat_type: list[0].repeat_type
-                    });
-                }
-                return;
-            }
-
-            if (e.target.classList.contains('done-btn')) {
-                const wrapper = e.target.closest('.task-card-wrapper');
-                const id = wrapper.querySelector('.task-card').dataset.id;
-                pendingTaskId = id;
-                selectedFiles = [];
-                $('mediaPreview').innerHTML = '';
-                $('completeTaskModal').classList.add('active');
-                return;
-            }
-
-            if (e.target.id === 'deleteTaskBtn') {
-                if (!isEditingTaskId) return;
-                if (!confirm('确定删除该任务？')) return;
-
-                await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        completed: 1,
-                        task_text: '[已删除]'
-                    })
-                });
-
-                $('taskModal').classList.remove('active');
-                isEditingTaskId = null;
-                renderDailyView();
-            }
-        };
-    }
-
-    /* ========== 添加 / 编辑任务 ========== */
+    /* ==================== 弹窗：添加 / 编辑任务 ==================== */
     function openAddModal(date, editTask) {
         isEditingTaskId = editTask ? editTask.id : null;
 
@@ -257,82 +204,7 @@ function nowCST() {
         $('taskTitleInput').focus();
     }
 
-    document.addEventListener('click', e => {
-        const addBtn = e.target.closest('.add-task-btn');
-        if (addBtn) {
-            openAddModal(addBtn.dataset.date);
-        }
-    });
-
-    $('cancelModalBtn').onclick = () => {
-        $('taskModal').classList.remove('active');
-        isEditingTaskId = null;
-    };
-
-    $('confirmAddBtn').onclick = async () => {
-        const text = $('taskTitleInput').value.trim();
-        if (!text) return alert('请输入任务内容');
-
-        const dt = new Date($('taskDateTimeInput').value);
-        const date = formatYMD(dt);
-        const time =
-            ('0' + dt.getHours()).slice(-2) + ':' +
-            ('0' + dt.getMinutes()).slice(-2);
-        const fullText = `[${time}] ${text}`;
-
-        if (isEditingTaskId) {
-            await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    task_text: fullText,
-                    date,
-                    repeat_type: $('repeatSelect').value
-                })
-            });
-        } else {
-            await upsertTask({
-                id: crypto.randomUUID(),
-                task_text: fullText,
-                date,
-                repeat_type: $('repeatSelect').value
-            });
-        }
-
-        $('taskModal').classList.remove('active');
-        isEditingTaskId = null;
-        renderDailyView();
-    };
-
-    /* ========== 完成任务 ========== */
-    $('chooseMediaBtn').onclick = () => $('mediaFileInput').click();
-
-    $('mediaFileInput').onchange = e => {
-        selectedFiles = Array.from(e.target.files);
-        $('mediaPreview').innerHTML = `已选择 ${selectedFiles.length} 个文件`;
-    };
-
-    $('clearMediaBtn').onclick = () => {
-        selectedFiles = [];
-        $('mediaPreview').innerHTML = '';
-        $('mediaFileInput').value = '';
-    };
-
-    $('cancelCompleteBtn').onclick = () => {
-        $('completeTaskModal').classList.remove('active');
-    };
-
-    $('confirmCompleteBtn').onclick = async () => {
-        if (!pendingTaskId) return;
-        if (selectedFiles.length) {
-            await uploadMedia(pendingTaskId, selectedFiles);
-        }
-        await completeTask(pendingTaskId);
-        $('completeTaskModal').classList.remove('active');
-        renderDailyView();
-    };
-
-    /* ========== 相册 & 滑动 ========== */
+    /* ==================== 相册 ==================== */
     function openGallery(items, index) {
         galleryItems = items;
         galleryIndex = index;
@@ -357,40 +229,12 @@ function nowCST() {
             btn.className = 'gallery-close';
             btn.innerHTML = '✕';
             modal.appendChild(btn);
-            btn.onclick = () => modal.classList.remove('active');
         }
 
         modal.classList.add('active');
     }
 
-    $('galleryModal').onclick = e => {
-        if (e.target === $('galleryModal')) {
-            $('galleryModal').classList.remove('active');
-        }
-    };
-
-    (() => {
-        const modal = $('galleryModal');
-        const track = $('galleryTrack');
-        let startX = 0;
-
-        modal.addEventListener('touchstart', e => {
-            startX = e.touches[0].clientX;
-        }, { passive: true });
-
-        modal.addEventListener('touchend', e => {
-            const endX = e.changedTouches[0].clientX;
-            const diff = startX - endX;
-
-            if (Math.abs(diff) > 50) {
-                if (diff > 0 && galleryIndex < galleryItems.length - 1) galleryIndex++;
-                if (diff < 0 && galleryIndex > 0) galleryIndex--;
-                track.style.transform = `translateX(-${galleryIndex * 100}vw)`;
-            }
-        }, { passive: true });
-    })();
-
-    /* ========== 日历总览 ========== */
+    /* ==================== 日历总览 ==================== */
     async function renderOverviewCalendar() {
         const container = $('overviewContainer');
         container.innerHTML = '';
@@ -403,7 +247,6 @@ function nowCST() {
         $('overviewTitle').textContent = `${year}年 ${month + 1}月`;
 
         let html = `<div class="calendar-grid">`;
-
         ['日','一','二','三','四','五','六'].forEach(d =>
             html += `<div style="font-weight:bold;color:#b4825a;">${d}</div>`
         );
@@ -453,72 +296,248 @@ function nowCST() {
         });
     }
 
-    /* ========== 底部按钮 ========== */
-    $('closeOverviewBtn').onclick = () => {
-        $('overviewViewPanel').style.display = 'none';
-        $('dailyViewPanel').style.display = 'block';
-    };
+    /* =========================================================
+       统一事件委托（核心）
+       ========================================================= */
+    document.addEventListener('click', async e => {
+        const target = e.target;
 
-    $('backTodayBtn').onclick = () => {
-        currentCenterDate = new Date();
-        currentCenterDate.setHours(0, 0, 0, 0);
-        renderDailyView();
-    };
-
-    $('overviewBtn').onclick = async () => {
-        const panel = $('overviewViewPanel');
-        const daily = $('dailyViewPanel');
-
-        if (panel.style.display === 'block') {
-            panel.style.display = 'none';
-            daily.style.display = 'block';
+        /* 媒体查看 */
+        if (target.classList.contains('media-btn')) {
+            const id = target.dataset.id;
+            const list = await api(`/media?task_id=${encodeURIComponent(id)}`);
+            if (list.length) openGallery(list, 0);
             return;
         }
 
-        daily.style.display = 'none';
-        panel.style.display = 'block';
-
-        overviewYear = new Date().getFullYear();
-        overviewMonth = new Date().getMonth();
-
-        await renderOverviewCalendar();
-    };
-
-    $('prevMonthBtn').onclick = async () => {
-        overviewMonth--;
-        if (overviewMonth < 0) {
-            overviewMonth = 11;
-            overviewYear--;
+        /* 编辑任务 */
+        if (target.classList.contains('edit-btn')) {
+            const wrapper = target.closest('.task-card-wrapper');
+            const id = wrapper.querySelector('.task-card').dataset.id;
+            const list = await api(`/tasks?id=${encodeURIComponent(id)}`);
+            if (list.length) {
+                openAddModal(list[0].date, {
+                    id: list[0].id,
+                    text: list[0].task_text,
+                    repeat_type: list[0].repeat_type
+                });
+            }
+            return;
         }
-        await renderOverviewCalendar();
-    };
 
-    $('nextMonthBtn').onclick = async () => {
-        overviewMonth++;
-        if (overviewMonth > 11) {
-            overviewMonth = 0;
-            overviewYear++;
+        /* 完成任务 */
+        if (target.classList.contains('done-btn')) {
+            const wrapper = target.closest('.task-card-wrapper');
+            const id = wrapper.querySelector('.task-card').dataset.id;
+            pendingTaskId = id;
+            selectedFiles = [];
+            $('mediaPreview').innerHTML = '';
+            $('completeTaskModal').classList.add('active');
+            return;
         }
-        await renderOverviewCalendar();
-    };
 
-    /* ========== 日期导航 ========== */
-    $('prevDayBtn').onclick = () => {
-        currentCenterDate.setDate(currentCenterDate.getDate() - 1);
-        renderDailyView();
-    };
+        /* 添加任务 */
+        if (target.classList.contains('add-task-btn')) {
+            openAddModal(target.dataset.date);
+            return;
+        }
 
-    $('nextDayBtn').onclick = () => {
-        currentCenterDate.setDate(currentCenterDate.getDate() + 1);
-        renderDailyView();
-    };
+        /* 选择媒体 */
+        if (target.id === 'chooseMediaBtn') {
+            $('mediaFileInput').click();
+            return;
+        }
 
-    /* ========== PWA ========== */
+        /* 清除媒体 */
+        if (target.id === 'clearMediaBtn') {
+            selectedFiles = [];
+            $('mediaPreview').innerHTML = '';
+            $('mediaFileInput').value = '';
+            return;
+        }
+
+        /* 弹窗取消 */
+        if (
+            target.id === 'cancelModalBtn' ||
+            target.id === 'cancelCompleteBtn'
+        ) {
+            $('taskModal').classList.remove('active');
+            $('completeTaskModal').classList.remove('active');
+            isEditingTaskId = null;
+            return;
+        }
+
+        /* 弹窗：确认添加 / 编辑任务 */
+        if (target.id === 'confirmAddBtn') {
+            const text = $('taskTitleInput').value.trim();
+            if (!text) return alert('请输入任务内容');
+
+            const dt = new Date($('taskDateTimeInput').value);
+            const date = formatYMD(dt);
+            const time =
+                ('0' + dt.getHours()).slice(-2) + ':' +
+                ('0' + dt.getMinutes()).slice(-2);
+            const fullText = `[${time}] ${text}`;
+
+            if (isEditingTaskId) {
+                await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_text: fullText,
+                        date,
+                        repeat_type: $('repeatSelect').value
+                    })
+                });
+            } else {
+                await upsertTask({
+                    id: crypto.randomUUID(),
+                    task_text: fullText,
+                    date,
+                    repeat_type: $('repeatSelect').value
+                });
+            }
+
+            $('taskModal').classList.remove('active');
+            isEditingTaskId = null;
+            renderDailyView();
+            return;
+        }
+
+        /* 弹窗：完成任务确认 */
+        if (target.id === 'confirmCompleteBtn') {
+            if (!pendingTaskId) return;
+            if (selectedFiles.length) {
+                await uploadMedia(pendingTaskId, selectedFiles);
+            }
+            await completeTask(pendingTaskId);
+            $('completeTaskModal').classList.remove('active');
+            renderDailyView();
+            return;
+        }
+
+        /* ✅ 弹窗：删除任务（已修复） */
+        if (target.id === 'deleteTaskBtn') {
+            if (!isEditingTaskId) return;
+            if (!confirm('确定删除该任务？')) return;
+
+            await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    completed: 1,
+                    task_text: '[已删除]'
+                })
+            });
+
+            $('taskModal').classList.remove('active');
+            isEditingTaskId = null;
+            renderDailyView();
+            return;
+        }
+
+        /* 相册关闭 */
+        if (target.classList.contains('gallery-close')) {
+            $('galleryModal').classList.remove('active');
+            return;
+        }
+
+        /* 底部栏 */
+        if (target.id === 'backTodayBtn') {
+            currentCenterDate = new Date();
+            currentCenterDate.setHours(0, 0, 0, 0);
+            renderDailyView();
+            return;
+        }
+
+        if (target.id === 'overviewBtn') {
+            const panel = $('overviewViewPanel');
+            const daily = $('dailyViewPanel');
+
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+                daily.style.display = 'block';
+                return;
+            }
+
+            daily.style.display = 'none';
+            panel.style.display = 'block';
+
+            overviewYear = new Date().getFullYear();
+            overviewMonth = new Date().getMonth();
+            await renderOverviewCalendar();
+            return;
+        }
+
+        /* 总览月份切换 */
+        if (target.id === 'prevMonthBtn') {
+            overviewMonth--;
+            if (overviewMonth < 0) {
+                overviewMonth = 11;
+                overviewYear--;
+            }
+            await renderOverviewCalendar();
+            return;
+        }
+
+        if (target.id === 'nextMonthBtn') {
+            overviewMonth++;
+            if (overviewMonth > 11) {
+                overviewMonth = 0;
+                overviewYear++;
+            }
+            await renderOverviewCalendar();
+            return;
+        }
+
+        if (target.id === 'closeOverviewBtn') {
+            $('overviewViewPanel').style.display = 'none';
+            $('dailyViewPanel').style.display = 'block';
+            return;
+        }
+
+        /* 日期导航 */
+        if (target.id === 'prevDayBtn') {
+            currentCenterDate.setDate(currentCenterDate.getDate() - 1);
+            renderDailyView();
+            return;
+        }
+
+        if (target.id === 'nextDayBtn') {
+            currentCenterDate.setDate(currentCenterDate.getDate() + 1);
+            renderDailyView();
+            return;
+        }
+    });
+
+    /* ==================== 相册滑动 ==================== */
+    (() => {
+        const modal = $('galleryModal');
+        const track = $('galleryTrack');
+        let startX = 0;
+
+        modal.addEventListener('touchstart', e => {
+            startX = e.touches[0].clientX;
+        }, { passive: true });
+
+        modal.addEventListener('touchend', e => {
+            const endX = e.changedTouches[0].clientX;
+            const diff = startX - endX;
+
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && galleryIndex < galleryItems.length - 1) galleryIndex++;
+                if (diff < 0 && galleryIndex > 0) galleryIndex--;
+                track.style.transform = `translateX(-${galleryIndex * 100}vw)`;
+            }
+        }, { passive: true });
+    })();
+
+    /* ==================== PWA ==================== */
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
-    /* ========== 启动 ========== */
+    /* ==================== 启动 ==================== */
     currentCenterDate.setHours(0, 0, 0, 0);
     renderDailyView();
 
