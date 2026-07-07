@@ -79,7 +79,7 @@ function nowCST() {
                 body: JSON.stringify({
                     task_id: taskId,
                     media_url: f.url,
-                    media_type: f.type
+                    media_type: normalizeMediaType(f.type) // ✅ 归一化
                 })
             });
         }
@@ -97,6 +97,13 @@ function nowCST() {
         return s.replace(/[&<>"']/g, m => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         })[m]);
+    }
+
+    function normalizeMediaType(type) {
+        if (!type) return 'file';
+        if (type.startsWith('image/')) return 'image';
+        if (type.startsWith('video/')) return 'video';
+        return 'file';
     }
 
     /* ========== 每日视图 ========== */
@@ -145,15 +152,18 @@ function nowCST() {
         renderDailyView();
     };
 
-        // 已完成任务：仅在有媒体时显示 🖼️
+        // 已完成任务：根据媒体类型显示图标
         const completedCards = document.querySelectorAll('.task-card.completed');
         for (const card of completedCards) {
             const id = card.dataset.id;
             const media = await api(`/media?task_id=${encodeURIComponent(id)}`);
             const placeholder = card.parentElement.querySelector('.task-right');
-            if (media.length && placeholder) {
-                placeholder.innerHTML = `<button class="media-btn" data-id="${id}" title="查看媒体">🖼️</button>`;
-            }
+            if (!media.length || !placeholder) continue;
+
+            const type = media[0].media_type || '';
+            const icon = type.startsWith('video/') ? '🎬' : '🖼️';
+
+            placeholder.innerHTML = `<button class="media-btn" data-id="${id}" title="查看媒体">${icon}</button>`;
         }
     }
 
