@@ -11,17 +11,31 @@ export async function onRequestPost({ request, env }) {
     const results = [];
 
     for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) continue;
+      // ✅ 放宽到 50MB（Cloudflare Free 单请求 100MB）
+      if (file.size > 50 * 1024 * 1024) continue;
+
       const ext = file.name.split('.').pop();
       const key = `tasks/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
       await env.MEDIA.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type }
+        httpMetadata: { contentType: file.type || 'application/octet-stream' }
       });
+
+      // ✅ 安全推导 media_type（不依赖 file.type）
+      let mediaType = 'file';
+      if (file.type?.startsWith('image/')) {
+        mediaType = 'image';
+      } else if (file.type?.startsWith('video/')) {
+        mediaType = 'video';
+      } else if (file.name?.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+        mediaType = 'video';
+      } else if (file.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        mediaType = 'image';
+      }
 
       results.push({
         url: `${env.R2_PUBLIC_URL}/${key}`,
-        type: file.type.startsWith('video') ? 'video' : 'image'
+        type: mediaType // ✅ 一定是 'image' | 'video' | 'file'
       });
     }
 
