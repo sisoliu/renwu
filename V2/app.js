@@ -65,25 +65,34 @@ function nowCST() {
     }
 
     async function uploadMedia(taskId, files) {
-        const fd = new FormData();
-        files.forEach(f => fd.append('file', f));
-        fd.append('taskId', taskId);
+    if (!files || !files.length) return;
 
-        const data = await api('/upload', { method: 'POST', body: fd });
-        if (!Array.isArray(data.files)) return;
+    const fd = new FormData();
+    for (const f of files) fd.append('file', f);
+    fd.append('taskId', taskId);
 
-        for (const f of data.files) {
-            await api('/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    task_id: taskId,
-                    media_url: f.url,
-                    media_type: normalizeMediaType(f.type) // ✅ 归一化
-                })
-            });
-        }
+    const data = await api('/upload', { method: 'POST', body: fd });
+    if (!Array.isArray(data.files)) return;
+
+    for (const f of data.files) {
+        // ✅ 按后端返回的 type 前缀判断，兜底用文件名后缀
+        let mt = 'file';
+        if (f.type?.startsWith('image/')) mt = 'image';
+        else if (f.type?.startsWith('video/')) mt = 'video';
+        else if (f.name?.match(/\.(mp4|mov|avi|mkv|webm)$/i)) mt = 'video';
+        else if (f.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) mt = 'image';
+
+        await api('/media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                task_id: taskId,
+                media_url: f.url,
+                media_type: mt   // ✅ 保证存 'video' 或 'image'
+            })
+        });
     }
+}
 
     /* ========== 工具 ========== */
     function formatYMD(d) {
