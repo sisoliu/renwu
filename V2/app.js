@@ -170,7 +170,7 @@ function nowCST() {
             if (!media.length || !placeholder) continue;
 
             const type = media[0].media_type || '';
-            const icon = type.startsWith('video/') ? '🎬' : '🖼️';
+            const icon = type === 'video' ? '🎬' : '🖼️';
 
             placeholder.innerHTML = `<button class="media-btn" data-id="${id}" title="查看媒体">${icon}</button>`;
         }
