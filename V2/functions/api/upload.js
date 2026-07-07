@@ -1,3 +1,21 @@
+function getMimeType(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const mimeMap = {
+    // 视频
+    mp4: 'video/mp4',
+    mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    mkv: 'video/x-matroska',
+    webm: 'video/webm',
+    // 图片
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp'
+  };
+  return mimeMap[ext] || 'application/octet-stream';
+}
 export async function onRequestPost({ request, env }) {
   try {
     const fd = await request.formData();
@@ -18,7 +36,9 @@ export async function onRequestPost({ request, env }) {
       const key = `tasks/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
       await env.MEDIA.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type || 'application/octet-stream' }
+        httpMetadata: { 
+          contentType: getMimeType(file.name) 
+        }
       });
 
       // ✅ 安全推导 media_type（不依赖 file.type）
