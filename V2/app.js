@@ -64,34 +64,65 @@ function nowCST() {
         });
     }
 
-    async function uploadMedia(taskId, files) {
+async function uploadMedia(taskId, files) {
     if (!files || !files.length) return;
 
-    const fd = new FormData();
-    for (const f of files) fd.append('file', f);
-    fd.append('taskId', taskId);
+    const progressBox = $('uploadProgress');
+    const bar = $('uploadProgressBar');
+    const percent = $('uploadPercent');
 
-    const data = await api('/upload', { method: 'POST', body: fd });
-    if (!Array.isArray(data.files)) return;
+    progressBox.style.display = 'block';
+    bar.style.width = '0%';
+    percent.textContent = '0%';
 
-    for (const f of data.files) {
-        // ✅ 按后端返回的 type 前缀判断，兜底用文件名后缀
-        let mt = 'file';
-        if (f.type?.startsWith('image/')) mt = 'image';
-        else if (f.type?.startsWith('video/')) mt = 'video';
-        else if (f.name?.match(/\.(mp4|mov|avi|mkv|webm)$/i)) mt = 'video';
-        else if (f.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) mt = 'image';
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const fd = new FormData();
 
-        await api('/media', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                task_id: taskId,
-                media_url: f.url,
-                media_type: mt   // ✅ 保证存 'video' 或 'image'
-            })
-        });
-    }
+        for (const f of files) fd.append('file', f);
+        fd.append('taskId', taskId);
+
+        xhr.upload.onprogress = e => {
+            if (e.lengthComputable) {
+                const p = Math.round(e.loaded / e.total * 100);
+                bar.style.width = p + '%';
+                percent.textContent = p + '%';
+            }
+        };
+
+        xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const data = JSON.parse(xhr.responseText);
+                if (Array.isArray(data.files)) {
+                    for (const f of data.files) {
+                        let mt = 'file';
+                        if (f.type?.startsWith('image/')) mt = 'image';
+                        else if (f.type?.startsWith('video/')) mt = 'video';
+                        else if (f.name?.match(/\.(mp4|mov|avi|mkv|webm)$/i)) mt = 'video';
+                        else if (f.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) mt = 'image';
+
+                        await api('/media', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                task_id: taskId,
+                                media_url: f.url,
+                                media_type: mt
+                            })
+                        });
+                    }
+                }
+                progressBox.style.display = 'none';
+                resolve();
+            } else {
+                reject(new Error('上传失败'));
+            }
+        };
+
+        xhr.onerror = () => reject(new Error('网络错误'));
+        xhr.open('POST', API + '/upload');
+        xhr.send(fd);
+    });
 }
 
     /* ========== 工具 ========== */
@@ -363,9 +394,19 @@ function nowCST() {
         items.forEach(m => {
             const div = document.createElement('div');
             div.className = 'gallery-item';
-            div.innerHTML = m.media_type === 'video'
-                ? `<video src="${m.media_url}" controls autoplay style="max-width:100%;max-height:100%;"></video>`
-                : `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+            if (m.media_type === 'video') {
+    div.innerHTML = `
+        <video 
+            src="${m.media_url}" 
+            controls 
+            autoplay 
+            muted="false"
+            playsInline
+            style="max-width:100%;max-height:100%;">
+        </video>`;
+} else {
+    div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
+}
             track.appendChild(div);
         });
 
@@ -379,7 +420,70 @@ function nowCST() {
             modal.appendChild(btn);
             btn.onclick = () => modal.classList.remove('active');
         }
+// ===== 图片缩放 =====
+let scale = 1;
+let startDist = 0;
+let lastScale = 1;
 
+track.querySelectorAll('img').forEach(img => {
+    img.addEventListener('touchstart', e => {
+        if (e.touches.length === 2) {
+            startDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            lastScale = scale;
+        }
+    }, { passive: true });
+
+    img.addEventListener('touchmove', e => {
+        if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            scale = Math.min(Math.max(lastScale * (dist / startDist), 1), 4);
+            img.style.transform = `scale(${scale})`;
+        }
+    }, { passive: true });
+
+    img.addEventListener('dblclick', () => {
+        scale = scale > 1 ? 1 : 2;
+        img.style.transform = `scale(${scale})`;
+    });
+});
+
+// 缩放按钮
+let zoomBar = document.querySelector('.zoom-controls');
+if (!zoomBar) {
+    zoomBar = document.createElement('div');
+    zoomBar.className = 'zoom-controls';
+    zoomBar.innerHTML = `
+        <button id="zoomOut">−</button>
+        <button id="zoomIn">+</button>
+        <button id="zoomReset">↺</button>
+    `;
+    $('galleryModal').appendChild(zoomBar);
+}
+
+$('zoomIn').onclick = () => {
+    scale = Math.min(scale + 0.5, 4);
+    updateZoom();
+};
+$('zoomOut').onclick = () => {
+    scale = Math.max(scale - 0.5, 1);
+    updateZoom();
+};
+$('zoomReset').onclick = () => {
+    scale = 1;
+    updateZoom();
+};
+
+function updateZoom() {
+    const img = track.querySelector('img');
+    if (img) img.style.transform = `scale(${scale})`;
+}
+        
         modal.classList.add('active');
     }
 
