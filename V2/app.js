@@ -395,15 +395,15 @@ async function uploadMedia(taskId, files) {
             const div = document.createElement('div');
             div.className = 'gallery-item';
             if (m.media_type === 'video') {
-    div.innerHTML = `
-        <video 
-            src="${m.media_url}" 
-            controls 
-            autoplay 
-            muted="false"
-            playsInline
-            style="max-width:100%;max-height:100%;">
-        </video>`;
+    div.innerHTML = m.media_type === 'video'
+    ? `<video 
+           src="${m.media_url}" 
+           controls 
+           autoplay
+           playsInline
+           style="max-width:100%;max-height:100%;">
+       </video>`
+    : `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
 } else {
     div.innerHTML = `<img src="${m.media_url}" style="max-width:100%;max-height:100%;" />`;
 }
@@ -485,6 +485,15 @@ function updateZoom() {
 }
         
         modal.classList.add('active');
+    // 确保视频能播（iOS 必加）
+setTimeout(() => {
+    const video = track.querySelector('video');
+    if (video) {
+        video.play().catch(() => {
+            // iOS 有时会拒绝，用户点一下 controls 即可
+        });
+    }
+}, 100);
     }
 
     $('galleryModal').onclick = e => {
