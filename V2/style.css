@@ -125,8 +125,22 @@ body {
     background: #e7c9ae;
     padding: 4px 14px;
     border-radius: 40px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: #593c2a;
+    white-space: nowrap;
+}
+
+/* 列标题：日期 + 星期 */
+.column-date {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    letter-spacing: 0.5px;
+}
+
+.today-column .column-date {
+    background: linear-gradient(135deg, #e3b38b, #c2814b);
+    color: #fff;
 }
 
 .add-task-btn {
@@ -199,6 +213,43 @@ body {
     color: #b45f36;
     font-weight: normal;
     white-space: nowrap;
+}
+
+/* ===================== 学科徽章 ===================== */
+.subject-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    margin-right: 8px;
+    border-radius: 30px;
+    white-space: nowrap;
+    vertical-align: 1px;
+}
+
+.subject-badge.subject-chinese {
+    background: #fff1e6;
+    color: #ea7300;
+}
+
+.subject-badge.subject-math {
+    background: #e8efff;
+    color: #2563eb;
+}
+
+.subject-badge.subject-english {
+    background: #e6f7ec;
+    color: #16a34a;
+}
+
+.subject-badge.subject-pe {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
+/* 任务文本过长时的换行 */
+.task-text {
+    line-height: 1.5;
 }
 
 .check-icon {
