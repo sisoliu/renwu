@@ -4,7 +4,7 @@ function nowCST() {
 }
 
 (function () {
-    console.log('🚀 暑假任务管家（最终版）');
+    console.log('学习任务管家');
 
     const API = '/api';
     let currentCenterDate = new Date();
@@ -146,6 +146,30 @@ async function uploadMedia(taskId, files) {
         return 'file';
     }
 
+    /* ========== 学科 ========== */
+    const SUBJECTS = ['语文', '数学', '英语', '体育'];
+    const SUBJECT_CLASS = { '语文': 'chinese', '数学': 'math', '英语': 'english', '体育': 'pe' };
+
+    // 列标题：9月6日 周六
+    function formatMD(d) {
+        return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+
+    function weekdayShort(d) {
+        return '周' + ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+    }
+
+    // 任务文本形如 "[学科] 任务内容"，拆出学科与正文
+    function splitSubject(text) {
+        const raw = text || '';
+        const m = /^\[([^\]]*)\]\s*([\s\S]*)$/.exec(raw);
+        if (m && SUBJECTS.includes(m[1])) {
+            return { subject: m[1], body: m[2] };
+        }
+        // 兼容旧数据（前缀是时间）或无前缀
+        return { subject: '', body: raw.replace(/^\[[^\]]*\]\s*/, '') };
+    }
+
     /* ========== 每日视图 ========== */
     async function renderDailyView() {
         const grid = $('tasksGrid');
@@ -164,9 +188,9 @@ async function uploadMedia(taskId, files) {
         ]);
 
         grid.innerHTML = '';
-        grid.appendChild(column(left, l, '昨天', 'yesterday'));
-        grid.appendChild(column(base, c, '今天', 'today'));
-        grid.appendChild(column(right, r, '明天', 'tomorrow'));
+        grid.appendChild(column(left, l, 'yesterday'));
+        grid.appendChild(column(base, c, 'today'));
+        grid.appendChild(column(right, r, 'tomorrow'));
 
         $('displayDate').textContent = formatYMD(base);
         $('displayWeekday').textContent = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][base.getDay()];
@@ -207,12 +231,13 @@ async function uploadMedia(taskId, files) {
         }
     }
 
-    function column(date, tasks, label, type) {
+    function column(date, tasks, type) {
         const ymd = formatYMD(date);
         const col = document.createElement('div');
         col.className = `day-column ${type}-column`;
 
-        let html = `<div class="column-title"><span>${label}</span>`;
+        let html = `<div class="column-title">
+            <span class="column-date">${formatMD(date)} ${weekdayShort(date)}</span>`;
         if (type === 'today') {
             html += `<button class="add-task-btn" data-date="${ymd}">+</button>`;
         }
@@ -222,11 +247,15 @@ async function uploadMedia(taskId, files) {
             html += `<div class="empty-msg">暂无任务</div>`;
         } else {
             tasks.forEach(t => {
+                const { subject, body } = splitSubject(t.text);
+                const subjectHtml = subject
+                    ? `<span class="subject-badge subject-${SUBJECT_CLASS[subject]}">${subject}</span>`
+                    : '';
                 html += `<div class="task-card-wrapper">`;
                 html += `
                 <div class="task-card ${t.completed ? 'completed' : ''}" data-id="${t.id}">
                     <div class="task-left">
-                        <span class="task-text">${escapeHtml(t.text)}</span>
+                        <span class="task-text">${subjectHtml}${escapeHtml(body)}</span>
                         <span class="repeat-badge">
                             ${t.repeat_type === 'daily' ? '每天' : t.repeat_type === 'weekly' ? '每周' : ''}
                         </span>
@@ -281,6 +310,8 @@ async function uploadMedia(taskId, files) {
                 const id = wrapper.querySelector('.task-card').dataset.id;
                 pendingTaskId = id;
                 selectedFiles = [];
+                $('completeTaskText').textContent =
+                    wrapper.querySelector('.task-text')?.textContent.trim() || '';
                 $('mediaPreview').innerHTML = '';
                 $('completeTaskModal').classList.add('active');
                 return;
@@ -299,10 +330,10 @@ async function uploadMedia(taskId, files) {
         now.setSeconds(0);
         $('taskDateTimeInput').value = now.toISOString().slice(0, 16);
 
-        $('taskTitleInput').value = editTask
-            ? editTask.text.replace(/^\[\d{2}:\d{2}\]\s*/, '')
-            : '';
+        const parsed = editTask ? splitSubject(editTask.text) : { subject: '', body: '' };
 
+        $('taskTitleInput').value = editTask ? parsed.body : '';
+        $('subjectSelect').value = parsed.subject || SUBJECTS[0];
         $('repeatSelect').value = editTask ? editTask.repeat_type : 'once';
         $('taskModal').classList.add('active');
         $('taskTitleInput').focus();
@@ -326,10 +357,8 @@ async function uploadMedia(taskId, files) {
 
         const dt = new Date($('taskDateTimeInput').value);
         const date = formatYMD(dt);
-        const time =
-            ('0' + dt.getHours()).slice(-2) + ':' +
-            ('0' + dt.getMinutes()).slice(-2);
-        const fullText = `[${time}] ${text}`;
+        const subject = $('subjectSelect').value || SUBJECTS[0];
+        const fullText = `[${subject}] ${text}`;
 
         if (isEditingTaskId) {
             await api(`/tasks?id=${encodeURIComponent(isEditingTaskId)}`, {
